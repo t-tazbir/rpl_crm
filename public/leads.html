@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>My Dashboard — Rangs Properties Ltd</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { display: ['Fraunces', 'ui-serif', 'serif'], sans: ['Inter', 'ui-sans-serif', 'sans-serif'] },
+        colors: {
+          ink: '#0B1220', ink2: '#16213A', paper: '#F6F7F9', hair: '#E6E8EC',
+          gold: '#C9A15A', goldsoft: '#EADFC5',
+          brand: { emerald: '#16A34A', rose: '#E11D48', amber: '#D97706', indigo: '#4F46E5' }
+        },
+        boxShadow: { card: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.10)' }
+      }
+    }
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="js/toast.js"></script>
+
+<style>
+  html, body { background: #F6F7F9; }
+  body { font-family: 'Inter', ui-sans-serif, sans-serif; }
+  .font-display { font-family: 'Fraunces', ui-serif, serif; font-variation-settings: 'opsz' 40; }
+  .chart-box { position: relative; width: 100%; }
+  #sidenav { transition: transform 300ms ease; }
+  .tab-panel { animation: fadeUp 280ms ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid #C9A15A; outline-offset: 2px; border-radius: 6px;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #D8DCE3; border-radius: 8px; }
+  .nav-item[data-active="true"] { background: #16213A; color: #fff; }
+  .nav-item[data-active="true"] .nav-dot { background: #C9A15A; }
+  details > summary { cursor: pointer; list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+
+  /* UI fix: fancy open/close animation for modals instead of an instant hidden<->flex toggle. */
+  .modal-backdrop { transition: opacity 220ms ease; }
+  .modal-panel { transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease; }
+  .modal-backdrop.modal-enter { opacity: 0; }
+  .modal-backdrop.modal-enter .modal-panel { opacity: 0; transform: scale(0.95) translateY(10px); }
+
+  /* UI fix: skeleton placeholder shimmer used while a section's data is loading. */
+  @keyframes skeleton-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+  .skeleton-block {
+    background: linear-gradient(90deg, #E9EBEF 25%, #F3F4F6 37%, #E9EBEF 63%);
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.4s ease infinite;
+    border-radius: 0.375rem;
+  }
+</style>
+</head>
+<body class="bg-paper text-[#1B2130] min-h-screen">
+
+<div id="overlay" class="fixed inset-0 bg-slate-900/50 z-30 hidden" onclick="closeSidenav()"></div>
+
+<div class="md:flex md:h-screen">
+
+  <!-- SIDENAV -->
+  <!-- UI fix: md:h-screen + md:overflow-y-auto makes the sidebar its own fixed-height,
+       independently-scrolling panel instead of stretching with main content (the old
+       md:static behavior let the sidebar grow as tall as the page, pushing the profile
+       card at the bottom far out of view on tall pages). -->
+  <aside id="sidenav" class="fixed inset-y-0 left-0 z-40 w-72 -translate-x-full bg-ink text-white flex flex-col justify-between md:static md:translate-x-0 md:w-64 md:shrink-0 md:h-screen md:overflow-y-auto">
+    <div>
+      <div class="px-6 py-6 border-b border-white/10 flex items-center justify-between">
+        <div>
+          <p class="text-[11px] uppercase tracking-[0.18em] text-gold font-semibold">Rangs Properties Ltd</p>
+          <h1 class="font-display text-xl font-semibold mt-1 leading-tight">My<br>Dashboard</h1>
+        </div>
+        <button onclick="closeSidenav()" class="md:hidden text-white/60 hover:text-white p-1" aria-label="Close menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <nav class="p-4 space-y-1" id="navList">
+        <button class="nav-item w-full flex items-center justify-between text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="today" onclick="switchTab('today')">
+          <span class="flex items-center gap-3">
+            <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>
+            <span class="text-sm font-medium">Today's Follow-ups</span>
+          </span>
+          <span id="badgeToday" class="hidden text-[10px] font-bold bg-gold text-ink rounded-full px-1.5 py-0.5 min-w-[18px] text-center"></span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="leads" onclick="switchTab('leads')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          <span class="text-sm font-medium">My Leads</span>
+        </button>
+        <button class="nav-item w-full flex items-center justify-between text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="stale" onclick="switchTab('stale')">
+          <span class="flex items-center gap-3">
+            <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.3 3.9 2.7 17a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+            <span class="text-sm font-medium">Stale Leads</span>
+          </span>
+          <span id="badgeStale" class="hidden text-[10px] font-bold bg-brand-rose text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center"></span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="todo" onclick="switchTab('todo')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span class="text-sm font-medium">To-Do</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="performance" onclick="switchTab('performance')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 3 5-7"/></svg>
+          <span class="text-sm font-medium">My Performance</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="profile" onclick="switchTab('profile')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <span class="text-sm font-medium">My Profile</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="p-4 border-t border-white/10">
+      <button onclick="switchTab('profile')" class="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 transition text-left mb-2">
+        <img id="sidebarAvatar" src="" class="w-9 h-9 rounded-full object-cover border border-white/10 hidden">
+        <div id="sidebarAvatarFallback" class="w-9 h-9 rounded-full bg-gold text-ink font-display font-semibold flex items-center justify-center text-sm shrink-0"></div>
+        <div class="min-w-0">
+          <p id="sidebarUserName" class="text-sm font-medium text-white truncate"></p>
+          <p id="sidebarUserRole" class="text-xs text-slate-400 truncate"></p>
+        </div>
+      </button>
+      <button onclick="logout()" class="w-full bg-white/5 hover:bg-brand-rose/90 hover:text-white text-slate-300 py-2 rounded-lg text-sm font-medium transition">Logout</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <!-- UI fix: md:h-screen + md:overflow-y-auto makes main content scroll independently
+       of the sidebar, so the sidebar never gets pushed around by tall page content. -->
+  <main class="flex-1 min-w-0 md:h-screen md:overflow-y-auto">
+    <header class="md:hidden sticky top-0 z-20 bg-white border-b border-hair px-4 py-3 flex items-center justify-between">
+      <button onclick="openSidenav()" class="p-1.5 -ml-1.5 text-ink" aria-label="Open menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <p class="font-display text-sm font-semibold text-ink">Rangs — My Dashboard</p>
+      <div class="w-7"></div>
+    </header>
+
+    <div class="px-4 sm:px-6 lg:px-10 py-6 lg:py-8 max-w-6xl mx-auto space-y-6">
+
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p class="text-xs uppercase tracking-[0.14em] text-slate-400 font-semibold" id="pageEyebrow">Today</p>
+          <h2 class="font-display text-2xl sm:text-3xl font-semibold text-ink mt-1" id="pageTitle">Today's Follow-ups</h2>
+          <p class="text-sm text-slate-500 mt-1" id="pageSubtitle">Everyone you need to call today</p>
+        </div>
+        <button onclick="openCreateModal()" class="flex items-center gap-1.5 bg-ink text-white text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-ink2 transition shadow-card">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Add Lead
+        </button>
+      </div>
+
+      <!-- Success/error states now surface as toasts (see js/toast.js) -->
+
+      <!-- ===== TODAY ===== -->
+      <section id="tab-today" class="tab-panel">
+        <div id="todayList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </section>
+
+      <!-- ===== MY LEADS ===== -->
+      <section id="tab-leads" class="tab-panel hidden space-y-4">
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-4 flex flex-wrap gap-3 items-center">
+          <input id="filterSearch" type="text" placeholder="Search name, phone, or lead ID..." class="flex-1 min-w-[180px] px-3 py-2 border border-hair rounded-lg text-sm focus:ring-2 focus:ring-gold/40 focus:border-gold outline-none">
+          <!-- Team-Lead-only: narrow the list to one report. Hidden entirely for
+               SALES_MAN, since every lead they see is already their own. -->
+          <select id="filterTeamMember" class="hidden px-3 py-2 border border-hair rounded-lg text-sm">
+            <option value="">Whole Team</option>
+          </select>
+          <select id="filterStage" class="px-3 py-2 border border-hair rounded-lg text-sm">
+            <option value="">All Stages</option>
+            <option value="Lead">Lead</option>
+            <option value="Prospect">Prospect</option>
+            <option value="Priority">Priority</option>
+          </select>
+          <select id="filterStatus" class="px-3 py-2 border border-hair rounded-lg text-sm">
+            <option value="">All Statuses</option>
+            <option value="Active">Active</option>
+            <option value="Converted">Converted</option>
+            <option value="Lost">Lost</option>
+            <option value="On Hold">On Hold</option>
+          </select>
+          <button onclick="loadLeads()" class="px-4 py-2 bg-ink text-white rounded-lg text-sm font-semibold hover:bg-ink2 transition">Filter</button>
+        </div>
+        <div id="leadsList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </section>
+
+      <!-- ===== STALE LEADS ===== -->
+      <section id="tab-stale" class="tab-panel hidden">
+        <p class="text-sm text-slate-500 mb-4">Active leads with no follow-up set (or overdue by 30+ days / 1 month). Give these a nudge — after 120 days of no nursing, a lead is automatically pulled from you and goes to Management's unassigned pool.</p>
+        <div id="staleList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </section>
+
+      <!-- ===== TODO ===== -->
+      <section id="tab-todo" class="tab-panel hidden">
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+          <form id="todoForm" class="flex flex-wrap gap-2 mb-5">
+            <input id="todoTitle" type="text" placeholder="New task..." required class="flex-1 min-w-[160px] px-3 py-2 border border-hair rounded-lg text-sm">
+            <input id="todoDueDate" type="date" class="px-3 py-2 border border-hair rounded-lg text-sm">
+            <button type="submit" class="px-4 py-2 bg-gold text-ink font-semibold rounded-lg text-sm hover:brightness-95 transition">Add</button>
+          </form>
+          <div id="todoList" class="space-y-2"></div>
+        </div>
+      </section>
+
+      <!-- ===== PERFORMANCE ===== -->
+      <section id="tab-performance" class="tab-panel hidden space-y-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Total</p><p class="font-display text-3xl font-semibold text-ink mt-2" id="pkTotal">—</p></div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Prospects</p><p class="font-display text-3xl font-semibold text-ink mt-2" id="pkProspects">—</p></div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Priority</p><p class="font-display text-3xl font-semibold text-ink mt-2" id="pkPriority">—</p></div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Converted</p><p class="font-display text-3xl font-semibold text-brand-emerald mt-2" id="pkConverted">—</p></div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Lost</p><p class="font-display text-3xl font-semibold text-brand-rose mt-2" id="pkLost">—</p></div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Conv. Rate</p><p class="font-display text-3xl font-semibold text-ink mt-2" id="pkConvRate">—</p></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+            <h3 class="font-display text-base font-semibold text-ink mb-3">Pipeline by Stage</h3>
+            <div class="chart-box h-64"><canvas id="stageChart"></canvas></div>
+          </div>
+          <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+            <h3 class="font-display text-base font-semibold text-ink mb-3">By Status</h3>
+            <div class="chart-box h-64"><canvas id="statusChart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+          <h3 class="font-display text-base font-semibold text-ink mb-3">Recently Converted 🎉</h3>
+          <div id="convertedList" class="space-y-2"></div>
+        </div>
+      </section>
+
+      <!-- ===== MY PROFILE ===== -->
+      <section id="tab-profile" class="tab-panel hidden space-y-6">
+
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6 flex items-center gap-5">
+          <div class="relative shrink-0">
+            <img id="profileAvatarImg" src="" class="w-20 h-20 rounded-full object-cover border border-hair hidden">
+            <div id="profileAvatarFallback" class="w-20 h-20 rounded-full bg-gold text-ink font-display text-2xl font-semibold flex items-center justify-center"></div>
+            <button type="button" onclick="document.getElementById('avatarFileInput').click()" class="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-ink text-white flex items-center justify-center border-2 border-white hover:bg-ink2 transition" aria-label="Change photo">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
+            </button>
+            <input type="file" id="avatarFileInput" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="uploadAvatar(this.files[0])">
+          </div>
+          <div class="min-w-0">
+            <p class="font-display text-xl font-semibold text-ink" id="profileDisplayName">—</p>
+            <p class="text-sm text-slate-500" id="profileDisplayDesignation">—</p>
+            <span id="profileRoleTag" class="inline-block mt-1 text-[11px] font-semibold uppercase tracking-wide bg-slate-100 text-slate-500 px-2 py-0.5 rounded">Sales Man</span>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+          <h3 class="font-display text-base font-semibold text-ink mb-4">Profile Details</h3>
+          <form id="profileForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Full Name *</label>
+              <input id="p_name" required class="w-full px-3 py-2 border border-hair rounded-lg">
+            </div>
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Designation</label>
+              <input id="p_designation" placeholder="e.g. Senior Sales Executive" class="w-full px-3 py-2 border border-hair rounded-lg">
+            </div>
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Phone Number</label>
+              <input id="p_phone" placeholder="017xxxxxxxx" class="w-full px-3 py-2 border border-hair rounded-lg">
+            </div>
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Email</label>
+              <input id="p_email_display" disabled class="w-full px-3 py-2 border border-hair rounded-lg bg-slate-50 text-slate-400">
+              <p class="text-xs text-slate-400 mt-1">Change email below — it needs your password to confirm.</p>
+            </div>
+            <div class="md:col-span-2 flex justify-end">
+              <button type="submit" class="px-4 py-2 bg-ink text-white rounded-lg text-sm font-semibold hover:bg-ink2">Save Changes</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+          <h3 class="font-display text-base font-semibold text-ink mb-1">Change Email</h3>
+          <p class="text-xs text-slate-400 mb-4">Requires your current password to confirm it's really you.</p>
+          <form id="emailForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">New Email *</label>
+              <input type="email" id="em_new_email" required class="w-full px-3 py-2 border border-hair rounded-lg">
+            </div>
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Current Password *</label>
+              <input type="password" id="em_current_password" required class="w-full px-3 py-2 border border-hair rounded-lg">
+            </div>
+            <div class="md:col-span-2 flex justify-end">
+              <button type="submit" class="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800">Update Email</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+          <h3 class="font-display text-base font-semibold text-ink mb-4">Change Password</h3>
+          <form id="passwordForm" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Current Password *</label>
+              <input type="password" id="pw_old" required class="w-full px-3 py-2 border border-hair rounded-lg">
+            </div>
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">New Password *</label>
+              <input type="password" id="pw_new" required minlength="6" class="w-full px-3 py-2 border border-hair rounded-lg">
+            </div>
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Confirm New Password *</label>
+              <input type="password" id="pw_confirm" required minlength="6" class="w-full px-3 py-2 border border-hair rounded-lg">
+            </div>
+            <div class="md:col-span-3 flex justify-end">
+              <button type="submit" class="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800">Update Password</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- ===== CREATE LEAD MODAL ===== -->
+<div id="createModal" class="modal-backdrop fixed inset-0 bg-ink/60 hidden items-center justify-center p-4 z-50">
+  <!-- UI fix: max-h-[90vh] + flex flex-col caps the modal to 90% of viewport height so it
+       never runs off-screen; header/footer are shrink-0 (always visible) and only the
+       form fields in between scroll, so Cancel/Save stay reachable no matter how long
+       the form gets. -->
+  <div class="modal-panel bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col">
+    <div class="flex justify-between items-center px-6 py-4 border-b border-hair shrink-0">
+      <h3 class="font-display text-lg font-semibold text-ink">Create New Lead</h3>
+      <button onclick="closeModal('createModal')" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+    </div>
+    <form id="createForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm px-6 py-4 overflow-y-auto flex-1">
+      <div><label class="block font-medium text-slate-700 mb-1">Lead Name *</label><input id="c_lead_name" required class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+      <div><label class="block font-medium text-slate-700 mb-1">Phone Number *</label><input id="c_lead_phone" required placeholder="017xxxxxxxx" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+      <div><label class="block font-medium text-slate-700 mb-1">Source</label>
+        <select id="c_source" class="w-full px-3 py-2 border border-hair rounded-lg">
+          <option value="DSI">DSI</option><option value="Hotline">Hotline</option><option value="DM">DM</option><option value="Internal Ref">Internal Ref</option>
+        </select>
+      </div>
+      <div><label class="block font-medium text-slate-700 mb-1">Project</label><input id="c_project" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+      <div><label class="block font-medium text-slate-700 mb-1">Category</label>
+        <select id="c_category" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="Residential">Residential</option><option value="Commercial">Commercial</option></select>
+      </div>
+      <div><label class="block font-medium text-slate-700 mb-1">Space (sqft)</label><input type="number" step="0.01" id="c_space_size_sqft" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+      <div><label class="block font-medium text-slate-700 mb-1">Stage</label>
+        <select id="c_stage" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="Lead">Lead</option><option value="Prospect">Prospect</option><option value="Priority">Priority</option></select>
+      </div>
+      <div><label class="block font-medium text-slate-700 mb-1">Next Follow-up</label><input type="datetime-local" id="c_next_follow_up" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+
+      <details class="md:col-span-2 border border-hair rounded-lg px-3 py-2">
+        <summary class="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">Additional Info (optional) <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary>
+        <div class="mt-3">
+          <label class="block font-medium text-slate-700 mb-1">Spouse Name</label>
+          <input id="c_spouse_name" class="w-full px-3 py-2 border border-hair rounded-lg">
+          <p class="text-xs text-slate-400 mt-1">Spouse phone numbers can be added after the lead is created (Edit → Additional Info).</p>
+        </div>
+      </details>
+
+      <div class="md:col-span-2"><label class="block font-medium text-slate-700 mb-1">Note</label><textarea id="c_note" rows="2" class="w-full px-3 py-2 border border-hair rounded-lg"></textarea></div>
+    </form>
+    <div class="flex justify-end gap-2 px-6 py-4 border-t border-hair shrink-0">
+      <button type="button" onclick="closeModal('createModal')" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Cancel</button>
+      <button type="submit" form="createForm" class="px-4 py-2 bg-ink text-white rounded-lg text-sm font-semibold hover:bg-ink2">Save Lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== EDIT LEAD MODAL ===== -->
+<div id="editModal" class="modal-backdrop fixed inset-0 bg-ink/60 hidden items-center justify-center p-4 z-50">
+  <div class="modal-panel bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+    <div class="flex justify-between items-center px-6 py-4 border-b border-hair shrink-0">
+      <h3 class="font-display text-lg font-semibold text-ink">Update Lead</h3>
+      <button onclick="closeModal('editModal')" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+    </div>
+
+    <div class="overflow-y-auto flex-1 px-6 py-4">
+      <!-- Phone numbers manager -->
+      <div class="mb-4 bg-slate-50 rounded-xl p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Phone Numbers (max 4 · one primary)</p>
+        <div id="editPhonesList" class="space-y-2 mb-3"></div>
+        <div class="flex gap-2">
+          <input id="newPhoneInput" placeholder="Add another number..." class="flex-1 px-3 py-2 border border-hair rounded-lg text-sm">
+          <button type="button" onclick="addPhoneToEditingLead()" class="px-3 py-2 bg-ink text-white rounded-lg text-sm font-semibold">Add</button>
+        </div>
+      </div>
+
+      <form id="editForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <input type="hidden" id="e_id">
+        <div><label class="block font-medium text-slate-700 mb-1">Lead Name *</label><input id="e_lead_name" required class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Project</label><input id="e_project" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Stage</label>
+          <select id="e_stage" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="Lead">Lead</option><option value="Prospect">Prospect</option><option value="Priority">Priority</option></select>
+        </div>
+        <div><label class="block font-medium text-slate-700 mb-1">Status</label>
+          <select id="e_status" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="Active">Active</option><option value="Converted">Converted</option><option value="Lost">Lost</option><option value="On Hold">On Hold</option></select>
+        </div>
+        <div><label class="block font-medium text-slate-700 mb-1">Client Meeting</label><select id="e_client_meeting" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Site Visit</label><select id="e_site_visit" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Meeting at HQ</label><select id="e_meeting_at_hq" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Next Follow-up (date &amp; time)</label><input type="datetime-local" id="e_next_follow_up" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+        <div class="md:col-span-2"><label class="block font-medium text-slate-700 mb-1">Unmet Demand Reason (if Lost)</label>
+          <select id="e_unmet_demand_reason" class="w-full px-3 py-2 border border-hair rounded-lg">
+            <option value="">-- None --</option>
+            <option>Budget / Price too high</option><option>Location mismatch</option><option>Size / Layout mismatch</option>
+            <option>Payment plan not suitable</option><option>Possession timeline too long</option><option>Legal / Documentation concern</option>
+            <option>Lost to competitor</option><option>Amenities not sufficient</option><option>Financing / Loan issue</option>
+            <option>Not ready to buy yet</option><option>Other</option>
+          </select>
+        </div>
+        <div class="md:col-span-2"><label class="block font-medium text-slate-700 mb-1">Note</label><textarea id="e_note" rows="2" class="w-full px-3 py-2 border border-hair rounded-lg"></textarea></div>
+
+        <details class="md:col-span-2 border border-hair rounded-lg px-3 py-2">
+          <summary class="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">Additional Info <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <div class="mt-3 space-y-3">
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Spouse Name</label>
+              <input id="e_spouse_name" class="w-full px-3 py-2 border border-hair rounded-lg">
+            </div>
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Spouse Phone Numbers (max 2)</label>
+              <div id="editSpousePhonesList" class="space-y-2 mb-2"></div>
+              <div class="flex gap-2">
+                <input id="newSpousePhoneInput" placeholder="Add spouse number..." class="flex-1 px-3 py-2 border border-hair rounded-lg text-sm">
+                <button type="button" onclick="addSpousePhoneToEditingLead()" class="px-3 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold">Add</button>
+              </div>
+            </div>
+          </div>
+        </details>
+      </form>
+    </div>
+
+    <div class="flex justify-end gap-2 px-6 py-4 border-t border-hair shrink-0">
+      <button type="button" onclick="closeModal('editModal')" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Cancel</button>
+      <button type="submit" form="editForm" class="px-4 py-2 bg-ink text-white rounded-lg text-sm font-semibold hover:bg-ink2">Update Lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== NURSING JOURNEY MODAL ===== -->
+<div id="journeyModal" class="modal-backdrop fixed inset-0 bg-ink/60 hidden items-center justify-center p-4 z-50">
+  <!-- UI fix: max-h-[85vh] + flex flex-col + min-h-0 on the scrolling child is the
+       standard flexbox pattern to make an inner region scroll while header/log-form
+       stay fixed in place, without the whole modal running past the viewport. -->
+  <div class="modal-panel bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+    <div class="bg-ink px-6 py-5 flex justify-between items-start shrink-0">
+      <div>
+        <p class="text-[11px] uppercase tracking-[0.14em] text-gold font-semibold">Nursing Journey</p>
+        <p class="font-display text-lg font-semibold text-white mt-0.5" id="journeyLeadName">—</p>
+        <p class="text-xs text-slate-400 mt-0.5" id="journeyLeadMeta"></p>
+      </div>
+      <button onclick="closeModal('journeyModal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+    </div>
+
+    <div class="p-6 flex flex-col flex-1 min-h-0">
+      <form id="activityLogForm" class="flex flex-col sm:flex-row gap-2 mb-5 shrink-0">
+        <select id="activityType" class="px-3 py-2 border border-hair rounded-lg text-sm sm:w-32">
+          <option value="call">Call</option>
+          <option value="meeting">Meeting</option>
+          <option value="note">Note</option>
+        </select>
+        <input id="activityDescription" placeholder="What happened? e.g. Called client, discussed budget..." class="flex-1 px-3 py-2 border border-hair rounded-lg text-sm">
+        <button type="submit" class="px-4 py-2 bg-gold text-ink font-semibold rounded-lg text-sm hover:brightness-95 transition shrink-0">Log Activity</button>
+      </form>
+
+      <div id="activityTimeline" class="space-y-4 flex-1 overflow-y-auto pr-1"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Bug #6 fix (implemented) ────────────────────────────────────────────────
+  // The JWT now lives in an HttpOnly cookie set by authController.login — it is
+  // NEVER present in localStorage or in JS-readable form, so an XSS payload
+  // (even one that slips past the CRITICAL-01/02/03 fixes) cannot read it.
+  // role/name are kept in localStorage purely for redirect/display purposes;
+  // they are not secrets and were never the actual security boundary.
+  const role = localStorage.getItem('role');
+  const userName = localStorage.getItem('name');
+  // NOTE: This is a UX convenience only (avoids a flash of the wrong page before
+  // the API rejects an unauthenticated request) — real enforcement happens
+  // server-side on every request via the cookie, checked by authMiddleware.js.
+  // We can't check "is there a valid session" purely from JS anymore since the
+  // cookie is HttpOnly (that's the point) — an expired/missing cookie will
+  // surface as 401s from the API calls below, which redirectToLogin() handles.
+  if (!role) window.location.href = 'login.html';
+  document.getElementById('sidebarUserName').textContent = userName || '';
+  // Fix Bug #9: replaceAll() is ES2021 — unsupported in older Android WebViews / Chrome <85.
+  // /_/g regex with .replace() achieves the same "replace every underscore" result with wider support.
+  document.getElementById('sidebarUserRole').textContent = (role || '').replace(/_/g, ' ');
+
+  function redirectToLogin() { localStorage.clear(); window.location.href = 'login.html'; }
+
+  async function logout() {
+    // Bug #6 fix: logging out now means telling the SERVER to clear the cookie —
+    // localStorage.clear() alone would leave the still-valid HttpOnly cookie in
+    // the browser, so the user would appear logged out in the UI but the cookie
+    // would still authenticate API requests until it expired.
+    try { await apiFetch(`${API}/auth/logout`, { method: 'POST' }); }
+    catch (err) { /* best-effort — clear local UI state regardless */ }
+    redirectToLogin();
+  }
+
+  const API = 'http://localhost:5000/api';
+
+  // Bug #6 fix: every API call goes through this wrapper so `credentials: 'include'`
+  // (required for the browser to attach the HttpOnly cookie) can never be forgotten
+  // on an individual fetch() call the way a hand-added header could be.
+  async function apiFetch(url, options = {}) {
+    const res = await fetch(url, { ...options, credentials: 'include' });
+    if (res.status === 401) {
+      // Cookie missing/expired/invalid — server is the only source of truth here now.
+      redirectToLogin();
+    }
+    return res;
+  }
+
+  const authHeadersJSON = { 'Content-Type': 'application/json' };
+
+  // ---------- Sidenav ----------
+  const sidenav = document.getElementById('sidenav');
+  const overlay = document.getElementById('overlay');
+  function openSidenav() { sidenav.classList.remove('-translate-x-full'); overlay.classList.remove('hidden'); }
+  function closeSidenav() { sidenav.classList.add('-translate-x-full'); overlay.classList.add('hidden'); }
+
+  // UI fix: modals now animate in/out instead of instantly appearing. The trick is a
+  // "modal-enter" class that represents the START state (faded/scaled-down) — we add it,
+  // flip display on, force a reflow via requestAnimationFrame, then remove it so the
+  // browser actually animates the transition to the resting state (rather than jumping
+  // straight there, which is what happens if you change both states in the same frame).
+  function openModal(id) {
+    const m = document.getElementById(id);
+    m.classList.add('modal-enter');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+    requestAnimationFrame(() => requestAnimationFrame(() => m.classList.remove('modal-enter')));
+  }
+
+  function closeModal(id) {
+    const m = document.getElementById(id);
+
+    // Fix Bug #8: Abort any in-flight request tied to this modal AND drop the reference
+    // so the AbortController (and the closure it captured) can be garbage collected.
+    if (id === 'editModal' && editAbortController) { editAbortController.abort(); editAbortController = null; }
+    if (id === 'journeyModal' && journeyAbortController) { journeyAbortController.abort(); journeyAbortController = null; }
+
+    m.classList.add('modal-enter'); // animate back to the faded/scaled-down state
+    setTimeout(() => {
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+      m.classList.remove('modal-enter'); // reset for next open
+    }, 220); // matches the CSS transition duration above
+  }
+
+  function showAlert(message, isError = false) {
+    showToast(message, isError ? 'error' : 'success');
+  }
+
+  // ── Security: XSS prevention ──────────────────────────────────────────────
+  // Every user-supplied string that goes into innerHTML MUST pass through this.
+  // textContent is safe by default; use escapeHtml only when building HTML strings.
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // ---------- Tabs ----------
+  const TAB_META = {
+    today:       { eyebrow: 'Today',       title: "Today's Follow-ups", subtitle: 'Everyone you need to call today' },
+    leads:       { eyebrow: 'My Leads',    title: 'My Leads',           subtitle: 'Search, filter, and manage your pipeline' },
+    stale:       { eyebrow: 'Stale Leads', title: 'Stale Leads',        subtitle: 'No follow-up activity in 30+ days (1 month)' },
+    todo:        { eyebrow: 'To-Do',       title: 'To-Do List',         subtitle: 'Your personal task list' },
+    performance: { eyebrow: 'Performance', title: 'My Performance',     subtitle: 'Your pipeline, at a glance' },
+    profile:     { eyebrow: 'Profile',     title: 'My Profile',         subtitle: 'Photo, contact info, and security' },
+  };
+
+  function switchTab(tab) {
+    Object.keys(TAB_META).forEach(t => {
+      document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+      const btn = document.querySelector(`.nav-item[data-tab="${t}"]`);
+      btn.dataset.active = (t === tab) ? 'true' : 'false';
+      btn.classList.toggle('text-slate-300', t !== tab);
+    });
+    const meta = TAB_META[tab];
+    document.getElementById('pageEyebrow').textContent = meta.eyebrow;
+    document.getElementById('pageTitle').textContent = meta.title;
+    document.getElementById('pageSubtitle').textContent = meta.subtitle;
+    closeSidenav();
+    if (tab === 'performance' && myStats) renderCharts();
+  }
+
+  // ---------- Helpers ----------
+
+  // Fix HIGH-02: Safari and some browsers reject "2026-08-20 15:30:00" (space separator).
+  // Normalize any MySQL datetime string to ISO 8601 format with 'T' separator first.
+  function parseDateSafe(v) {
+    if (!v) return null;
+    // Replace space separator with 'T' so all browsers parse it correctly.
+    // "2026-08-20 15:30:00" → "2026-08-20T15:30:00"  (already ISO is fine too)
+    const iso = String(v).replace(' ', 'T');
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // Fix HIGH-01: The server stores follow-up times in local server time (Asia/Dhaka, UTC+6)
+  // but returns them as ISO strings that JavaScript treats as UTC — so "15:30Z" would show
+  // as 21:30 locally. Since mysql2 actually serialises WITHOUT a 'Z' suffix (bare local time),
+  // we must NOT treat the value as UTC. We strip any trailing 'Z' and parse as local.
+  function toDatetimeLocalValue(mysqlDatetime) {
+    if (!mysqlDatetime) return '';
+    // mysql2 may return "2026-08-20T15:30:00.000Z" or "2026-08-20 15:30:00".
+    // Strip the Z (if present) so JS treats the value as local time, not UTC.
+    const localStr = String(mysqlDatetime).replace('Z', '').replace(' ', 'T').slice(0, 16);
+    return localStr;
+  }
+
+  function toMySQLDatetime(inputValue) {
+    if (!inputValue) return null;
+    // datetime-local gives "2026-08-20T15:30" — backend expects "2026-08-20 15:30:00"
+    return inputValue.replace('T', ' ') + (inputValue.length === 16 ? ':00' : '');
+  }
+
+  function formatDateTime(v) {
+    if (!v) return 'Not set';
+    const d = parseDateSafe(v);
+    if (!d) return 'Invalid date';
+    return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function daysAgo(v) {
+    if (!v) return null;
+    const d = parseDateSafe(v);
+    if (!d) return null;
+    return Math.floor((Date.now() - d.getTime()) / 86400000);
+  }
+  const STAGE_COLOR = { Lead: 'bg-indigo-100 text-indigo-700', Prospect: 'bg-amber-100 text-amber-700', Priority: 'bg-rose-100 text-rose-700' };
+  // Fix HIGH-06: Backend may return status in varied casing (e.g. "LOST", "Lost", "lost").
+  // Normalise to Title Case before lookup so the color map always matches.
+  const STATUS_COLOR = { Active: 'bg-emerald-100 text-emerald-700', Converted: 'bg-emerald-600 text-white', Lost: 'bg-slate-200 text-slate-600', 'On Hold': 'bg-amber-100 text-amber-700' };
+  function normalizeStatus(s) {
+    if (!s) return '';
+    // "LOST" → "Lost", "on hold" → "On Hold", "Active" → "Active"
+    return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  // Fix CRITICAL-03: No longer pass lead object through inline onclick HTML attribute.
+  // Instead, store leads by id in a Map and reference only the numeric id in the button.
+  // This eliminates JSON injection through HTML attributes entirely.
+  const leadMap = new Map();
+
+  // Fix Bug #7: leadMap grew unbounded because repeated searches (loadLeads) or repeated
+  // dashboard refreshes (loadMyStats) kept adding entries and nothing ever removed old ones.
+  // A blanket `leadMap.clear()` inside those functions would be wrong here though: tabs in
+  // this app stay in the DOM (just hidden via CSS — see switchTab), so a card rendered by
+  // loadMyStats (Today/Stale tabs) can still be sitting on screen while loadLeads repopulates
+  // the Leads tab. Clearing the whole map would silently break Edit/Journey buttons on the
+  // OTHER tab's already-rendered cards. Instead we track which ids belong to which section
+  // and only prune that section's previous ids right before it re-renders — so the map stays
+  // bounded (never grows past what's actually on screen) without invalidating other tabs.
+  const leadMapSections = { myStats: new Set(), leads: new Set() };
+  function pruneLeadMapSection(section) {
+    for (const id of leadMapSections[section]) leadMap.delete(id);
+    leadMapSections[section].clear();
+  }
+
+  // ── UI fix: skeleton loaders ─────────────────────────────────────────────────
+  // Shown while a section's data is actually in flight (initial page load, or any
+  // explicit refetch after save/filter/delete) — NOT on every tab switch, since
+  // switching to an already-loaded tab is instant and faking a delay there would
+  // make the app feel slower, not more polished.
+  function skeletonLeadCard() {
+    return `<div class="bg-white rounded-xl shadow-card border border-hair p-4 flex flex-col gap-2.5">
+      <div class="flex justify-between items-start gap-2">
+        <div class="skeleton-block h-4 w-28"></div>
+        <div class="flex gap-1.5"><div class="skeleton-block h-7 w-16 rounded-lg"></div><div class="skeleton-block h-7 w-12 rounded-lg"></div></div>
+      </div>
+      <div class="skeleton-block h-3 w-24"></div>
+      <div class="flex gap-1.5"><div class="skeleton-block h-4 w-14 rounded"></div><div class="skeleton-block h-4 w-14 rounded"></div></div>
+      <div class="skeleton-block h-3 w-32"></div>
+    </div>`;
+  }
+
+  function skeletonTodoRow() {
+    return `<div class="flex items-center gap-3 bg-slate-50 rounded-lg px-3 py-2.5">
+      <div class="skeleton-block h-4 w-4 rounded"></div>
+      <div class="flex-1 space-y-1.5"><div class="skeleton-block h-3.5 w-40"></div><div class="skeleton-block h-3 w-24"></div></div>
+    </div>`;
+  }
+
+  function renderSkeleton(containerId, count, templateFn) {
+    const el = document.getElementById(containerId);
+    if (el) el.innerHTML = Array(count).fill(0).map(templateFn).join('');
+  }
+
+  function leadCard(lead, extraBadge, section) {
+    // Register lead in map so openEditModal / openJourneyModal can retrieve it safely.
+    leadMap.set(lead.id, lead);
+    if (section) leadMapSections[section].add(lead.id);
+
+    const stageCls = STAGE_COLOR[lead.stage] || 'bg-slate-100 text-slate-600';
+    const normStatus = normalizeStatus(lead.status);
+    const statusCls = STATUS_COLOR[normStatus] || 'bg-slate-100 text-slate-600';
+
+    // Team Lead sees leads from multiple reports mixed together — without this,
+    // there'd be no way to tell whose lead a card belongs to. Sales Man never
+    // sees this (every card is already their own, so it'd just be clutter).
+    const repChip = (role === 'TEAM_LEAD' && lead.sales_rep_name)
+      ? `<span class="text-[10px] font-medium text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded">${escapeHtml(lead.sales_rep_name)}</span>`
+      : '';
+
+    // Fix CRITICAL-01: All user-supplied fields escaped before insertion into innerHTML.
+    return `
+      <div class="bg-white rounded-xl shadow-card border border-hair p-4 flex flex-col gap-2">
+        <div class="flex justify-between items-start gap-2">
+          <div class="min-w-0">
+            <p class="font-display text-base font-semibold text-ink truncate">${escapeHtml(lead.lead_name)}</p>
+            <p class="text-xs text-slate-400 font-mono">${escapeHtml(lead.lead_id)}</p>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button data-action="journey" data-lead-id="${lead.id}" title="Nursing Journey" class="text-xs font-semibold bg-goldsoft/60 hover:bg-goldsoft text-ink px-2.5 py-1.5 rounded-lg transition flex items-center gap-1">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+              Journey
+            </button>
+            <button data-action="edit" data-lead-id="${lead.id}" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-ink px-2.5 py-1.5 rounded-lg transition">Edit</button>
+          </div>
+        </div>
+        <p class="text-sm text-slate-600">${escapeHtml(lead.lead_phone)}</p>
+        <div class="flex flex-wrap gap-1.5">
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded ${stageCls}">${escapeHtml(lead.stage)}</span>
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded ${statusCls}">${escapeHtml(normStatus)}</span>
+          ${repChip}
+          ${extraBadge || ''}
+        </div>
+        <div class="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>
+          ${formatDateTime(lead.next_follow_up)}
+        </div>
+        ${lead.project ? `<p class="text-xs text-slate-400">${escapeHtml(lead.project)}</p>` : ''}
+      </div>`;
+  }
+
+  // Fix CRITICAL-03: Event delegation for lead card buttons — no object in HTML attribute.
+  // One listener on the document handles all dynamically rendered lead cards.
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action][data-lead-id]');
+    if (!btn) return;
+    const id = parseInt(btn.dataset.leadId, 10);
+    const lead = leadMap.get(id);
+    if (!lead) return;
+    if (btn.dataset.action === 'edit') openEditModal(lead);
+    if (btn.dataset.action === 'journey') openJourneyModal(lead);
+  });
+
+  // Fix HIGH-05: Safe JSON parse — if the server returns an HTML error page (e.g. a
+  // 500 crash), res.json() throws and crashes the caller. This helper also checks the
+  // Content-Type header before attempting to parse, so the error message is meaningful.
+  async function safeJson(res) {
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(`Server error (HTTP ${res.status}) — please try again.`);
+    }
+    return res.json();
+  }
+
+  // ---------- Today's Follow-ups + Stale + Performance (from /dashboard/my-stats) ----------
+  let myStats = null;
+
+  async function loadMyStats() {
+    // UI fix: skeleton while this (re)fetch is in flight — covers both first page load
+    // and any explicit refresh (e.g. after saving an edit).
+    renderSkeleton('todayList', 2, skeletonLeadCard);
+    renderSkeleton('staleList', 2, skeletonLeadCard);
+    try {
+      const res = await apiFetch(`${API}/dashboard/my-stats`);
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      myStats = result;
+
+      // Fix Bug #7: Remove this section's previously-tracked ids before re-adding the fresh set.
+      pruneLeadMapSection('myStats');
+
+      // Today
+      const todayEl = document.getElementById('todayList');
+      todayEl.innerHTML = result.today_follow_ups.length
+        ? result.today_follow_ups.map(l => leadCard(l, null, 'myStats')).join('')
+        : `<p class="text-sm text-slate-400 col-span-full">No follow-ups scheduled for today. 🎉</p>`;
+      const badgeToday = document.getElementById('badgeToday');
+      if (result.today_follow_ups.length > 0) { badgeToday.textContent = result.today_follow_ups.length; badgeToday.classList.remove('hidden'); }
+      else badgeToday.classList.add('hidden');
+
+      // Stale
+      const staleEl = document.getElementById('staleList');
+      staleEl.innerHTML = result.stale_leads.length
+        ? result.stale_leads.map(l => {
+            const d = daysAgo(l.updated_at);
+            const badge = `<span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-brand-rose/10 text-brand-rose">${d !== null ? d + 'd since last touched' : ''}</span>`;
+            return leadCard(l, badge, 'myStats');
+          }).join('')
+        : `<p class="text-sm text-slate-400 col-span-full">Nothing stale — great job staying on top of follow-ups!</p>`;
+      const badgeStale = document.getElementById('badgeStale');
+      if (result.stale_leads.length > 0) { badgeStale.textContent = result.stale_leads.length; badgeStale.classList.remove('hidden'); }
+      else badgeStale.classList.add('hidden');
+
+      // Performance KPIs
+      const kpi = result.kpi;
+      document.getElementById('pkTotal').textContent = kpi.total_leads;
+      document.getElementById('pkProspects').textContent = kpi.prospects;
+      document.getElementById('pkPriority').textContent = kpi.priority;
+      document.getElementById('pkConverted').textContent = kpi.converted;
+      document.getElementById('pkLost').textContent = kpi.lost;
+      document.getElementById('pkConvRate').textContent = kpi.conversion_rate + '%';
+
+      document.getElementById('convertedList').innerHTML = result.recently_converted.length
+        ? result.recently_converted.map(l => `
+            <div class="flex justify-between items-center py-2 border-b border-hair last:border-0">
+              <div><p class="text-sm font-medium text-ink">${escapeHtml(l.lead_name)}</p><p class="text-xs text-slate-400">${escapeHtml(l.project || 'General')}</p></div>
+              <span class="text-xs text-slate-400">${formatDateTime(l.updated_at)}</span>
+            </div>`).join('')
+        : `<p class="text-sm text-slate-400">No conversions yet — keep going!</p>`;
+
+      if (!document.getElementById('tab-performance').classList.contains('hidden')) renderCharts();
+    } catch (err) {
+      showAlert(err.message || 'Could not load your dashboard', true);
+    }
+  }
+
+  let stageChartInst = null, statusChartInst = null;
+  function renderCharts() {
+    // Fix MEM-02: Null-check + null-out after destroy so a re-render triggered before
+    // the canvas is fully mounted doesn't throw on a stale Chart.js instance reference.
+    if (stageChartInst) { stageChartInst.destroy(); stageChartInst = null; }
+    if (statusChartInst) { statusChartInst.destroy(); statusChartInst = null; }
+
+    // Guard: don't try to render if the canvas elements aren't in the DOM yet.
+    if (!document.getElementById('stageChart') || !document.getElementById('statusChart')) return;
+
+    const stageColors = { Lead: '#4F46E5', Prospect: '#C9A15A', Priority: '#D97706' };
+    stageChartInst = new Chart(document.getElementById('stageChart').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: myStats.by_stage.map(s => s.stage),
+        datasets: [{ data: myStats.by_stage.map(s => s.count), backgroundColor: myStats.by_stage.map(s => stageColors[s.stage] || '#94A3B8'), borderWidth: 0 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '62%' }
+    });
+
+    const statusColors = { Active: '#4F46E5', Converted: '#16A34A', Lost: '#E11D48', 'On Hold': '#D97706' };
+    statusChartInst = new Chart(document.getElementById('statusChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: myStats.by_status.map(s => s.status),
+        datasets: [{ data: myStats.by_status.map(s => s.count), backgroundColor: myStats.by_status.map(s => statusColors[s.status] || '#94A3B8'), borderRadius: 6, maxBarThickness: 40 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+  }
+
+  // ---------- My Leads (filterable) ----------
+  async function loadLeads() {
+    const params = new URLSearchParams();
+    const search = document.getElementById('filterSearch').value.trim();
+    const stage = document.getElementById('filterStage').value;
+    const status = document.getElementById('filterStatus').value;
+    const teamMember = document.getElementById('filterTeamMember').value;
+    if (search) params.set('search', search);
+    if (stage) params.set('stage', stage);
+    if (status) params.set('status', status);
+    // Only meaningful for TEAM_LEAD (the dropdown is hidden/empty otherwise).
+    // Server re-validates this is actually one of the caller's own reports
+    // before honoring it — see leadController.getLeads — so there's nothing
+    // unsafe about just forwarding whatever value is selected here.
+    if (teamMember) params.set('sales_rep_id', teamMember);
+
+    // UI fix: skeleton while search/filter results are loading.
+    renderSkeleton('leadsList', 6, skeletonLeadCard);
+
+    try {
+      const res = await apiFetch(`${API}/leads?${params.toString()}`);
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      const el = document.getElementById('leadsList');
+      // Fix Bug #7: Prune previous search results' ids before adding the new set —
+      // keeps leadMap bounded to only what's currently rendered in this section.
+      pruneLeadMapSection('leads');
+      el.innerHTML = result.data.length ? result.data.map(l => leadCard(l, null, 'leads')).join('') : `<p class="text-sm text-slate-400 col-span-full">No leads match this filter.</p>`;
+    } catch (err) {
+      showAlert(err.message, true);
+    }
+  }
+  document.getElementById('filterSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadLeads(); });
+
+  // ---------- Create Lead ----------
+  function openCreateModal() { document.getElementById('createForm').reset(); openModal('createModal'); }
+
+  document.getElementById('createForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      lead_name: document.getElementById('c_lead_name').value,
+      lead_phone: document.getElementById('c_lead_phone').value,
+      spouse_name: document.getElementById('c_spouse_name').value || null,
+      source: document.getElementById('c_source').value,
+      project: document.getElementById('c_project').value,
+      category: document.getElementById('c_category').value,
+      space_size_sqft: document.getElementById('c_space_size_sqft').value || null,
+      stage: document.getElementById('c_stage').value,
+      next_follow_up: toMySQLDatetime(document.getElementById('c_next_follow_up').value),
+      note: document.getElementById('c_note').value
+    };
+    try {
+      const res = await apiFetch(`${API}/leads`, { method: 'POST', headers: authHeadersJSON, body: JSON.stringify(payload) });
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Lead created successfully!');
+      closeModal('createModal');
+      loadLeads(); loadMyStats();
+    } catch (err) {
+      showAlert(err.message, true);
+    }
+  });
+
+  // ---------- Edit Lead (+ phone/spouse contact management) ----------
+  let editingLeadId = null;
+  // Fix HIGH-03: AbortController cancels any in-flight phone/contact fetch when
+  // the user switches to a different lead before the previous request completes.
+  // Without this, Lead A's contacts could render inside Lead B's modal.
+  let editAbortController = null;
+
+  async function openEditModal(lead) {
+    // Cancel any pending contact fetch from a previously opened modal.
+    if (editAbortController) editAbortController.abort();
+    editAbortController = new AbortController();
+
+    editingLeadId = lead.id;
+    document.getElementById('e_id').value = lead.id;
+    document.getElementById('e_lead_name').value = lead.lead_name;
+    document.getElementById('e_project').value = lead.project || '';
+    document.getElementById('e_stage').value = lead.stage;
+    document.getElementById('e_status').value = lead.status;
+    document.getElementById('e_client_meeting').value = lead.client_meeting;
+    document.getElementById('e_site_visit').value = lead.site_visit;
+    document.getElementById('e_meeting_at_hq').value = lead.meeting_at_hq;
+    document.getElementById('e_next_follow_up').value = toDatetimeLocalValue(lead.next_follow_up);
+    document.getElementById('e_unmet_demand_reason').value = lead.unmet_demand_reason || '';
+    document.getElementById('e_note').value = lead.note || '';
+    document.getElementById('e_spouse_name').value = lead.spouse_name || '';
+
+    openModal('editModal');
+    await loadEditingLeadContacts(editAbortController.signal);
+  }
+
+  // ---------- Nursing Journey (dedicated modal) ----------
+  let journeyLeadId = null;
+  // Fix HIGH-04: Same AbortController pattern for the journey/activity modal.
+  let journeyAbortController = null;
+
+  const ACTIVITY_STYLE = {
+    created:        { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>' },
+    note:           { bg: 'bg-slate-200',   text: 'text-slate-600',   icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 4h16v12H8l-4 4z"/></svg>' },
+    call:           { bg: 'bg-indigo-100',  text: 'text-indigo-700',  icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.7a2 2 0 0 1-.4 2.1L8 9.9a16 16 0 0 0 6 6l1.4-1.4a2 2 0 0 1 2.1-.4c.9.3 1.8.5 2.7.6a2 2 0 0 1 1.8 2.2Z"/></svg>' },
+    meeting:        { bg: 'bg-amber-100',   text: 'text-amber-700',   icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
+    stage_change:   { bg: 'bg-goldsoft',    text: 'text-ink',         icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>' },
+    status_change:  { bg: 'bg-purple-100',  text: 'text-purple-700',  icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>' },
+    follow_up_set:  { bg: 'bg-blue-100',    text: 'text-blue-700',    icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>' },
+    meeting_update: { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>' },
+    transfer:       { bg: 'bg-indigo-100',  text: 'text-indigo-700',  icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 3l4 4-4 4"/><path d="M20 7H4"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h16"/></svg>' },
+    unassigned:     { bg: 'bg-rose-100',    text: 'text-brand-rose', icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 9v4m0 4h.01M10.3 3.9 2.7 17a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>' },
+  };
+
+  function renderActivityTimeline(activities) {
+    const el = document.getElementById('activityTimeline');
+    if (!activities.length) {
+      el.innerHTML = `<p class="text-sm text-slate-400 text-center py-8">No activity logged yet — this is where the lead's nursing history will show up.</p>`;
+      return;
+    }
+    el.innerHTML = activities.map((a, i) => {
+      const style = ACTIVITY_STYLE[a.activity_type] || ACTIVITY_STYLE.note;
+      const isLast = i === activities.length - 1;
+      return `
+        <div class="relative flex gap-3">
+          ${!isLast ? `<span class="absolute left-[13px] top-7 bottom-[-16px] w-px bg-hair"></span>` : ''}
+          <div class="w-7 h-7 rounded-full ${style.bg} ${style.text} flex items-center justify-center shrink-0 z-10">${style.icon}</div>
+          <div class="min-w-0 flex-1 pt-0.5 pb-1">
+            <p class="text-sm text-ink leading-snug">${escapeHtml(a.description)}</p>
+            <p class="text-xs text-slate-400 mt-0.5">${escapeHtml(a.actor_name || 'System')} · ${formatDateTime(a.created_at)}</p>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function openJourneyModal(lead) {
+    // Cancel any pending activity fetch from a previously opened journey modal.
+    if (journeyAbortController) journeyAbortController.abort();
+    journeyAbortController = new AbortController();
+
+    journeyLeadId = lead.id;
+    // Safe: textContent is always XSS-safe, no escaping needed here.
+    document.getElementById('journeyLeadName').textContent = lead.lead_name;
+    document.getElementById('journeyLeadMeta').textContent = [lead.lead_id, lead.lead_phone].filter(Boolean).join(' · ');
+    openModal('journeyModal');
+    await loadJourneyActivities(journeyAbortController.signal);
+  }
+
+  async function loadJourneyActivities(signal) {
+    try {
+      const res = await apiFetch(`${API}/leads/${journeyLeadId}/activities`, { signal });
+      const result = await safeJson(res); // Fix HIGH-05: guards non-JSON error pages
+      if (!res.ok) throw new Error(result.message);
+      renderActivityTimeline(result.data);
+    } catch (err) {
+      if (err.name === 'AbortError') return; // intentional cancel — don't show error toast
+      showAlert(err.message || 'Could not load activity timeline', true);
+    }
+  }
+
+  document.getElementById('activityLogForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const activity_type = document.getElementById('activityType').value;
+    const description = document.getElementById('activityDescription').value.trim();
+    if (!description) return;
+    try {
+      const res = await apiFetch(`${API}/leads/${journeyLeadId}/activities`, {
+        method: 'POST', headers: authHeadersJSON,
+        body: JSON.stringify({ activity_type, description })
+      });
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      document.getElementById('activityDescription').value = '';
+      showAlert('Activity logged');
+      await loadJourneyActivities(journeyAbortController?.signal);
+    } catch (err) {
+      showAlert(err.message, true);
+    }
+  });
+  async function loadEditingLeadContacts(signal) {
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/phones`, { signal });
+      const result = await safeJson(res); // Fix HIGH-05: guards non-JSON error pages
+      if (!res.ok) throw new Error(result.message);
+
+      // phone_number comes from the DB (globally unique, validated on insert) but we
+      // still escape it here — defence-in-depth if the DB is ever compromised.
+      document.getElementById('editPhonesList').innerHTML = result.phones.map(p => `
+        <div class="flex items-center justify-between bg-white border border-hair rounded-lg px-3 py-2">
+          <span class="text-sm ${p.is_primary ? 'font-semibold text-ink' : 'text-slate-600'}">${escapeHtml(p.phone_number)} ${p.is_primary ? '<span class="text-[10px] uppercase tracking-wide text-gold ml-1">Primary</span>' : ''}</span>
+          <div class="flex items-center gap-2">
+            ${!p.is_primary ? `<button type="button" onclick="setPrimaryPhone(${Number(p.id)})" class="text-xs text-indigo-600 hover:underline">Set Primary</button>` : ''}
+            <button type="button" onclick="deletePhone(${Number(p.id)})" class="text-xs text-brand-rose hover:underline">Remove</button>
+          </div>
+        </div>`).join('');
+
+      document.getElementById('editSpousePhonesList').innerHTML = result.spouse_phones.map(p => `
+        <div class="flex items-center justify-between bg-white border border-hair rounded-lg px-3 py-2">
+          <span class="text-sm text-slate-600">${escapeHtml(p.phone_number)}</span>
+          <button type="button" onclick="deleteSpousePhone(${Number(p.id)})" class="text-xs text-brand-rose hover:underline">Remove</button>
+        </div>`).join('');
+    } catch (err) {
+      if (err.name === 'AbortError') return; // intentional cancel
+      showAlert(err.message, true);
+    }
+  }
+
+  async function addPhoneToEditingLead() {
+    const input = document.getElementById('newPhoneInput');
+    if (!input.value.trim()) return;
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/phones`, { method: 'POST', headers: authHeadersJSON, body: JSON.stringify({ phone_number: input.value.trim() }) });
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      input.value = '';
+      showAlert('Phone number added');
+      await loadEditingLeadContacts();
+    } catch (err) { showAlert(err.message, true); }
+  }
+
+  async function setPrimaryPhone(phoneId) {
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/phones/${phoneId}/primary`, { method: 'PUT', headers: authHeadersJSON });
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Primary number updated');
+      await loadEditingLeadContacts();
+    } catch (err) { showAlert(err.message, true); }
+  }
+
+  async function deletePhone(phoneId) {
+    if (!confirm('Remove this phone number?')) return;
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/phones/${phoneId}`, { method: 'DELETE' });
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Phone number removed');
+      await loadEditingLeadContacts();
+    } catch (err) { showAlert(err.message, true); }
+  }
+
+  async function addSpousePhoneToEditingLead() {
+    const input = document.getElementById('newSpousePhoneInput');
+    if (!input.value.trim()) return;
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/spouse-phones`, { method: 'POST', headers: authHeadersJSON, body: JSON.stringify({ phone_number: input.value.trim() }) });
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      input.value = '';
+      showAlert('Spouse number added');
+      await loadEditingLeadContacts();
+    } catch (err) { showAlert(err.message, true); }
+  }
+
+  async function deleteSpousePhone(phoneId) {
+    if (!confirm('Remove this spouse phone number?')) return;
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/spouse-phones/${phoneId}`, { method: 'DELETE' });
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Spouse number removed');
+      await loadEditingLeadContacts();
+    } catch (err) { showAlert(err.message, true); }
+  }
+
+  document.getElementById('editForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('e_id').value;
+    const payload = {
+      lead_name: document.getElementById('e_lead_name').value,
+      project: document.getElementById('e_project').value,
+      stage: document.getElementById('e_stage').value,
+      status: document.getElementById('e_status').value,
+      client_meeting: document.getElementById('e_client_meeting').value,
+      site_visit: document.getElementById('e_site_visit').value,
+      meeting_at_hq: document.getElementById('e_meeting_at_hq').value,
+      next_follow_up: toMySQLDatetime(document.getElementById('e_next_follow_up').value),
+      unmet_demand_reason: document.getElementById('e_unmet_demand_reason').value || null,
+      note: document.getElementById('e_note').value
+    };
+    try {
+      const res = await apiFetch(`${API}/leads/${id}`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify(payload) });
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+
+      // Spouse name uses its own dedicated endpoint
+      const spouseName = document.getElementById('e_spouse_name').value;
+      await apiFetch(`${API}/leads/${id}/spouse`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify({ spouse_name: spouseName || null }) });
+
+      showAlert('Lead updated successfully!');
+      closeModal('editModal');
+      loadLeads(); loadMyStats();
+    } catch (err) {
+      showAlert(err.message, true);
+    }
+  });
+
+  // ---------- To-Do ----------
+  async function loadTodos() {
+    // UI fix: skeleton while todos are loading.
+    renderSkeleton('todoList', 3, skeletonTodoRow);
+    try {
+      const res = await apiFetch(`${API}/todos`);
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      const el = document.getElementById('todoList');
+      el.innerHTML = result.data.length ? result.data.map(t => `
+        <div class="flex items-center gap-3 bg-slate-50 rounded-lg px-3 py-2.5">
+          <input type="checkbox" ${t.is_done ? 'checked' : ''} onchange="toggleTodo(${Number(t.id)}, this.checked)" class="w-4 h-4 accent-gold">
+          <div class="flex-1 min-w-0">
+            <p class="text-sm ${t.is_done ? 'line-through text-slate-400' : 'text-ink'}">${escapeHtml(t.title)}</p>
+            <p class="text-xs text-slate-400">${t.due_date ? 'Due ' + escapeHtml(t.due_date) : ''} ${t.lead_name ? '· ' + escapeHtml(t.lead_name) : ''}</p>
+          </div>
+          <button onclick="deleteTodo(${Number(t.id)})" class="text-slate-300 hover:text-brand-rose">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+          </button>
+        </div>`).join('') : `<p class="text-sm text-slate-400">No tasks yet — add one above.</p>`;
+    } catch (err) { showAlert(err.message, true); }
+  }
+
+  document.getElementById('todoForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = document.getElementById('todoTitle').value.trim();
+    const due_date = document.getElementById('todoDueDate').value || null;
+    if (!title) return;
+    try {
+      const res = await apiFetch(`${API}/todos`, { method: 'POST', headers: authHeadersJSON, body: JSON.stringify({ title, due_date }) });
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      document.getElementById('todoForm').reset();
+      showAlert('Task added');
+      loadTodos();
+    } catch (err) { showAlert(err.message, true); }
+  });
+
+  async function toggleTodo(id, isDone) {
+    try {
+      await apiFetch(`${API}/todos/${id}`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify({ is_done: isDone }) });
+      showToast(isDone ? 'Task marked done' : 'Task marked pending', 'success', 1800);
+      loadTodos();
+    } catch (err) { showAlert('Could not update task', true); }
+  }
+
+  async function deleteTodo(id) {
+    try {
+      await apiFetch(`${API}/todos/${id}`, { method: 'DELETE' });
+      showAlert('Task removed');
+      loadTodos();
+    } catch (err) { showAlert('Could not remove task', true); }
+  }
+
+  // ---------- My Profile ----------
+  function initials(name) {
+    if (!name) return '?';
+    return name.trim().split(/\s+/).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  }
+
+  function renderAvatar(profile) {
+    const url = profile.profile_picture;
+    // Sidebar avatar
+    const sideImg = document.getElementById('sidebarAvatar');
+    const sideFallback = document.getElementById('sidebarAvatarFallback');
+    // Profile tab avatar
+    const bigImg = document.getElementById('profileAvatarImg');
+    const bigFallback = document.getElementById('profileAvatarFallback');
+
+    if (url) {
+      const fullUrl = API.replace('/api', '') + url;
+      sideImg.src = fullUrl; sideImg.classList.remove('hidden'); sideFallback.classList.add('hidden');
+      bigImg.src = fullUrl; bigImg.classList.remove('hidden'); bigFallback.classList.add('hidden');
+    } else {
+      sideImg.classList.add('hidden'); sideFallback.classList.remove('hidden');
+      bigImg.classList.add('hidden'); bigFallback.classList.remove('hidden');
+      sideFallback.textContent = initials(profile.name);
+      bigFallback.textContent = initials(profile.name);
+    }
+  }
+
+  async function loadMyProfile() {
+    try {
+      const res = await apiFetch(`${API}/users/me`);
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      const p = result.data;
+
+      document.getElementById('sidebarUserName').textContent = p.name;
+      // Fix Bug #9: regex /g replace instead of replaceAll() for older WebView support
+      document.getElementById('sidebarUserRole').textContent = (p.designation || p.role.replace(/_/g, ' '));
+
+      document.getElementById('profileDisplayName').textContent = p.name;
+      document.getElementById('profileDisplayDesignation').textContent = p.designation || 'No designation set';
+      // Fix LOW: More robust selector using a dedicated id instead of a fragile multi-class chain.
+      const roleTag = document.getElementById('profileRoleTag');
+      if (roleTag) roleTag.textContent = p.role.replace(/_/g, ' ');
+
+      document.getElementById('p_name').value = p.name || '';
+      document.getElementById('p_designation').value = p.designation || '';
+      document.getElementById('p_phone').value = p.phone || '';
+      document.getElementById('p_email_display').value = p.email || '';
+
+      renderAvatar(p);
+    } catch (err) {
+      showAlert(err.message || 'Could not load your profile', true);
+    }
+  }
+
+  async function uploadAvatar(file) {
+    if (!file) return;
+
+    // Fix HIGH-07: Validate file type and size on the client before sending to the server.
+    // The server (uploadMiddleware.js) enforces the same rules — this is an early UX check
+    // that gives instant feedback instead of waiting for a round-trip.
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB — matches server limit
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      showAlert('Only JPG, PNG, or WEBP images are allowed.', true);
+      return;
+    }
+    if (file.size > MAX_SIZE_BYTES) {
+      showAlert('Image must be under 2 MB.', true);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('profile_picture', file);
+    try {
+      const res = await apiFetch(`${API}/users/me/profile-picture`, {
+        method: 'POST',
+         // no Content-Type — browser sets multipart boundary
+        body: formData
+      });
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Profile picture updated');
+      loadMyProfile();
+    } catch (err) {
+      showAlert(err.message || 'Could not upload photo', true);
+    }
+  }
+
+  document.getElementById('profileForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      name: document.getElementById('p_name').value.trim(),
+      designation: document.getElementById('p_designation').value.trim() || null,
+      phone: document.getElementById('p_phone').value.trim() || null
+    };
+    try {
+      const res = await apiFetch(`${API}/users/me`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify(payload) });
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Profile updated successfully!');
+      loadMyProfile();
+    } catch (err) {
+      showAlert(err.message, true);
+    }
+  });
+
+  document.getElementById('emailForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      new_email: document.getElementById('em_new_email').value.trim(),
+      current_password: document.getElementById('em_current_password').value
+    };
+    try {
+      const res = await apiFetch(`${API}/users/me/email`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify(payload) });
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Email updated successfully!');
+      document.getElementById('emailForm').reset();
+      loadMyProfile();
+    } catch (err) {
+      showAlert(err.message, true);
+    }
+  });
+
+  document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newPw = document.getElementById('pw_new').value;
+    const confirmPw = document.getElementById('pw_confirm').value;
+    if (newPw !== confirmPw) {
+      showAlert('New password and confirmation do not match.', true);
+      return;
+    }
+    const payload = {
+      oldPassword: document.getElementById('pw_old').value,
+      newPassword: newPw
+    };
+    try {
+      const res = await apiFetch(`${API}/auth/reset-password`, { method: 'POST', headers: authHeadersJSON, body: JSON.stringify(payload) });
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Password updated successfully!');
+      document.getElementById('passwordForm').reset();
+    } catch (err) {
+      showAlert(err.message, true);
+    }
+  });
+
+  // ---------- Team Lead: "Filter by team member" dropdown ----------
+  // Reveals the dropdown and fills it with this Team Lead's direct reports.
+  // No-op (and stays hidden) for every other role, since /api/users/team
+  // 403s for anyone who isn't CLUSTER_HEAD/DD_ED/TEAM_LEAD anyway.
+  async function loadTeamMemberFilter() {
+    if (role !== 'TEAM_LEAD') return;
+    try {
+      const res = await apiFetch(`${API}/users/team`);
+      const result = await safeJson(res);
+      if (!res.ok) throw new Error(result.message);
+      const sel = document.getElementById('filterTeamMember');
+      sel.innerHTML = '<option value="">Whole Team</option>' + result.data.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+      sel.classList.remove('hidden');
+    } catch (err) {
+      // Non-fatal: the filter just stays hidden if this fails, rest of the page still works.
+      console.error('Could not load team member filter:', err.message);
+    }
+  }
+
+  // ---------- Init ----------
+  switchTab('today');
+  loadMyStats();
+  loadLeads();
+  loadTodos();
+  loadMyProfile();
+  loadTeamMemberFilter();
+</script>
+</body>
+</html>

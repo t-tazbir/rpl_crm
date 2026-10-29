@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Executive Dashboard — Rangs Properties Ltd</title>
+
+<!-- Fonts: Fraunces for headline/data numerals (gives the report its "annual review" gravitas), Inter for UI -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          display: ['Fraunces', 'ui-serif', 'serif'],
+          sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        },
+        colors: {
+          ink: '#0B1220',
+          ink2: '#16213A',
+          paper: '#F6F7F9',
+          hair: '#E6E8EC',
+          gold: '#C9A15A',
+          goldsoft: '#EADFC5',
+          brand: {
+            emerald: '#16A34A',
+            rose: '#E11D48',
+            amber: '#D97706',
+            indigo: '#4F46E5',
+          }
+        },
+        boxShadow: {
+          card: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.10)',
+        }
+      }
+    }
+  }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="js/toast.js"></script>
+
+<style>
+  :root { color-scheme: light; }
+  html, body { background: #F6F7F9; }
+  body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+  .font-display { font-family: 'Fraunces', ui-serif, serif; font-variation-settings: 'opsz' 40; }
+
+  /* Chart canvases need an explicit-height parent or Chart.js's responsive resizer misbehaves on mobile */
+  .chart-box { position: relative; width: 100%; }
+
+  /* Signature element: Portfolio Health ring, pure CSS conic-gradient donut */
+  .health-ring {
+    --pct: 0;
+    width: 200px; height: 200px; border-radius: 9999px;
+    background: conic-gradient(#C9A15A calc(var(--pct) * 1%), rgba(255,255,255,0.10) 0);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .health-ring::before {
+    content: ''; position: absolute; inset: 16px; border-radius: 9999px; background: #0B1220;
+  }
+  .health-ring-value { position: relative; z-index: 1; text-align: center; }
+
+  /* Sidenav drawer transition */
+  #sidenav { transition: transform 300ms ease; }
+  #overlay { transition: opacity 200ms ease; }
+
+  /* Tab panel entrance */
+  .tab-panel { animation: fadeUp 320ms ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) {
+    .tab-panel { animation: none; }
+    #sidenav, #overlay { transition: none; }
+  }
+
+  /* Visible keyboard focus everywhere */
+  a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid #C9A15A; outline-offset: 2px; border-radius: 6px;
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #D8DCE3; border-radius: 8px; }
+
+  .nav-item[data-active="true"] { background: #16213A; color: #fff; }
+  .nav-item[data-active="true"] .nav-dot { background: #C9A15A; }
+  details > summary { cursor: pointer; list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+
+  /* UI fix: fancy open/close animation for modals instead of an instant hidden<->flex toggle. */
+  .modal-backdrop { transition: opacity 220ms ease; }
+  .modal-panel { transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease; }
+  .modal-backdrop.modal-enter { opacity: 0; }
+  .modal-backdrop.modal-enter .modal-panel { opacity: 0; transform: scale(0.95) translateY(10px); }
+
+  /* UI fix: skeleton placeholder shimmer used while a section's data is loading. */
+  @keyframes skeleton-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+  .skeleton-block {
+    background: linear-gradient(90deg, #E9EBEF 25%, #F3F4F6 37%, #E9EBEF 63%);
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.4s ease infinite;
+    border-radius: 0.375rem;
+  }
+  .org-children { position: relative; padding-top: 2rem; }
+  .org-children::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: #D8DCE3; }
+  .org-child { position: relative; }
+  .org-child::before { content: ''; position: absolute; top: -2rem; left: 50%; width: 1px; height: 2rem; background: #D8DCE3; }
+  /* Reference-style org chart: circular avatar overlaps the top of its colored card/pill. */
+  .org-avatar-overlap { position: relative; z-index: 10; margin-bottom: -1.5rem; }
+</style>
+</head>
+<body class="bg-paper text-[#1B2130] min-h-screen">
+
+<!-- Top loading indicator -->
+<div id="loadingBar" class="fixed top-0 left-0 h-0.5 bg-gold z-50 transition-all duration-500" style="width:0%"></div>
+
+<!-- Mobile overlay for drawer -->
+<div id="overlay" class="fixed inset-0 bg-slate-900/50 z-30 hidden md:hidden" onclick="closeSidenav()"></div>
+
+<div class="md:flex md:h-screen">
+
+  <!-- SIDENAV -->
+  <!-- UI fix: md:h-screen + md:overflow-y-auto makes the sidebar its own fixed-height,
+       independently-scrolling panel instead of stretching with main content. -->
+  <aside id="sidenav" class="fixed inset-y-0 left-0 z-40 w-72 -translate-x-full bg-ink text-white flex flex-col justify-between md:static md:translate-x-0 md:w-64 md:shrink-0 md:h-screen md:overflow-y-auto">
+    <div>
+      <div class="px-6 py-6 border-b border-white/10 flex items-center justify-between">
+        <div>
+          <p class="text-[11px] uppercase tracking-[0.18em] text-gold font-semibold">Rangs Properties Ltd</p>
+          <h1 class="font-display text-xl font-semibold mt-1 leading-tight">Executive<br>Dashboard</h1>
+        </div>
+        <button onclick="closeSidenav()" class="md:hidden text-white/60 hover:text-white p-1" aria-label="Close menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <nav class="p-4 space-y-1" id="navList">
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="overview" onclick="switchTab('overview')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          <span class="text-sm font-medium">Overview</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="source" onclick="switchTab('source')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6.5 3.8"/></svg>
+          <span class="text-sm font-medium">Lead Source</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="lost" onclick="switchTab('lost')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
+          <span class="text-sm font-medium">Lost Analysis</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="engagement" onclick="switchTab('engagement')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 6 9 17l-5-5"/></svg>
+          <span class="text-sm font-medium">Engagement</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="projects" onclick="switchTab('projects')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-8h6v8"/></svg>
+          <span class="text-sm font-medium">Projects</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="allleads" onclick="switchTab('allleads')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          <span class="text-sm font-medium">All Leads</span>
+        </button>
+        <button class="nav-item w-full flex items-center justify-between text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="unassigned" onclick="switchTab('unassigned')">
+          <span class="flex items-center gap-3">
+            <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6"/><path d="M17 14v4M17 22h.01"/></svg>
+            <span class="text-sm font-medium">Unassigned Leads</span>
+          </span>
+          <span id="badgeUnassigned" class="hidden text-[10px] font-bold bg-brand-rose text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center"></span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="orgchart" onclick="switchTab('orgchart')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="5" r="2.5"/><path d="M12 7.5v4M12 11.5H5v3M12 11.5h7v3M5 14.5v3M19 14.5v3"/></svg>
+          <span class="text-sm font-medium">Organogram</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="clusterreports" onclick="switchTab('clusterreports')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 2h6l1 4H8l1-4Z"/><path d="M5 6h14l-1.5 14a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2L5 6Z"/></svg>
+          <span class="text-sm font-medium">Cluster Reports</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="profile" onclick="switchTab('profile')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <span class="text-sm font-medium">My Profile</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="p-4 border-t border-white/10">
+      <button onclick="switchTab('profile')" class="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 transition text-left mb-2">
+        <img id="sidebarAvatar" src="" class="w-9 h-9 rounded-full object-cover border border-white/10 hidden">
+        <div id="sidebarAvatarFallback" class="w-9 h-9 rounded-full bg-gold text-ink font-display font-semibold flex items-center justify-center text-sm shrink-0"></div>
+        <div class="min-w-0">
+          <p id="sidebarUserName" class="text-sm font-medium text-white truncate"></p>
+          <p id="sidebarUserRole" class="text-xs text-slate-400 truncate">Management (DD / ED)</p>
+        </div>
+      </button>
+      <button onclick="logout()" class="w-full bg-white/5 hover:bg-brand-rose/90 hover:text-white text-slate-300 py-2 rounded-lg text-sm font-medium transition">Logout</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <!-- UI fix: independent scroll container, matching the sidebar fix above. -->
+  <main class="flex-1 min-w-0 md:h-screen md:overflow-y-auto">
+
+    <!-- Mobile top bar -->
+    <header class="md:hidden sticky top-0 z-20 bg-white border-b border-hair px-4 py-3 flex items-center justify-between">
+      <button onclick="openSidenav()" class="p-1.5 -ml-1.5 text-ink" aria-label="Open menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <p class="font-display text-sm font-semibold text-ink">Rangs — Executive View</p>
+      <div class="w-7"></div>
+    </header>
+
+    <div class="px-4 sm:px-6 lg:px-10 py-6 lg:py-8 max-w-6xl mx-auto space-y-6">
+
+      <!-- Page header -->
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p class="text-xs uppercase tracking-[0.14em] text-slate-400 font-semibold" id="pageEyebrow">Overview</p>
+          <h2 class="font-display text-2xl sm:text-3xl font-semibold text-ink mt-1" id="pageTitle">Welcome back</h2>
+          <p class="text-sm text-slate-500 mt-1" id="pageSubtitle">Company-wide pipeline snapshot</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-slate-400" id="lastUpdated"></span>
+          <button onclick="loadDashboard()" id="refreshBtn" class="flex items-center gap-1.5 bg-white border border-hair shadow-card text-ink text-xs font-semibold px-3 py-2 rounded-lg hover:border-gold transition">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Error and success states now surface as toasts (see js/toast.js) -->
+
+      <!-- ============ TAB: OVERVIEW ============ -->
+      <section id="tab-overview" class="tab-panel space-y-6">
+
+        <!-- KPI grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4">
+            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-brand-indigo"></span>Total Leads</p>
+            <p class="font-display text-3xl font-semibold text-ink mt-2" id="kpiTotal">—</p>
+          </div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4">
+            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-brand-indigo"></span>Prospects</p>
+            <p class="font-display text-3xl font-semibold text-ink mt-2" id="kpiProspects">—</p>
+          </div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4">
+            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-brand-amber"></span>Priority</p>
+            <p class="font-display text-3xl font-semibold text-ink mt-2" id="kpiPriority">—</p>
+          </div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4">
+            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-brand-emerald"></span>Converted</p>
+            <p class="font-display text-3xl font-semibold text-ink mt-2" id="kpiConverted">—</p>
+          </div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4">
+            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-brand-rose"></span>Lost</p>
+            <p class="font-display text-3xl font-semibold text-ink mt-2" id="kpiLost">—</p>
+          </div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4">
+            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-gold"></span>Conv. Rate</p>
+            <p class="font-display text-3xl font-semibold text-ink mt-2" id="kpiConvRate">—</p>
+          </div>
+        </div>
+
+        <!-- Portfolio Health hero + Stage/Category breakdown -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+
+          <div class="lg:col-span-2 bg-ink rounded-2xl shadow-card p-6 sm:p-8 flex flex-col items-center text-center">
+            <p class="text-[11px] uppercase tracking-[0.16em] text-gold font-semibold">Portfolio Health</p>
+            <div class="health-ring mt-5" id="healthRing">
+              <div class="health-ring-value">
+                <p class="font-display text-4xl font-semibold text-white" id="ringConvRate">—</p>
+                <p class="text-[11px] uppercase tracking-wide text-slate-400 mt-1">Conversion Rate</p>
+              </div>
+            </div>
+            <p class="text-sm text-slate-400 mt-5" id="ringLostRate">Lost rate —</p>
+          </div>
+
+          <div class="lg:col-span-3 bg-white rounded-2xl shadow-card border border-hair p-6 space-y-6">
+            <div>
+              <h3 class="font-display text-base font-semibold text-ink mb-3">Pipeline by Stage</h3>
+              <div id="stageBars" class="space-y-3"></div>
+            </div>
+            <div class="pt-2 border-t border-hair">
+              <h3 class="font-display text-base font-semibold text-ink mb-3">Residential vs Commercial</h3>
+              <div id="categorySplit" class="grid grid-cols-2 gap-3"></div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ============ TAB: LEAD SOURCE ============ -->
+      <section id="tab-source" class="tab-panel hidden">
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6 sm:p-8">
+          <h3 class="font-display text-lg font-semibold text-ink">Leads by Source</h3>
+          <p class="text-sm text-slate-500 mt-1">Where new leads are originating from, company-wide.</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center mt-6">
+            <div class="chart-box h-64 sm:h-72"><canvas id="sourceChart"></canvas></div>
+            <div id="sourceLegend" class="space-y-3"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ TAB: LOST ANALYSIS ============ -->
+      <section id="tab-lost" class="tab-panel hidden space-y-4 sm:space-y-6">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+          <div class="sm:col-span-1 bg-ink rounded-2xl shadow-card p-6 flex flex-col justify-center">
+            <p class="text-[11px] uppercase tracking-[0.16em] text-gold font-semibold">Lost Ratio</p>
+            <p class="font-display text-5xl font-semibold text-white mt-3" id="lostRatioValue">—</p>
+            <p class="text-sm text-slate-400 mt-2" id="lostRatioCaption">— of — leads lost</p>
+          </div>
+          <div class="sm:col-span-2 bg-white rounded-2xl shadow-card border border-hair p-6 sm:p-8">
+            <h3 class="font-display text-lg font-semibold text-ink">Reasons Leads Are Lost</h3>
+            <p class="text-sm text-slate-500 mt-1">Unmet demand breakdown across all lost leads.</p>
+            <div class="chart-box h-72 sm:h-80 mt-4"><canvas id="lostChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ TAB: ENGAGEMENT ============ -->
+      <section id="tab-engagement" class="tab-panel hidden">
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6 sm:p-8">
+          <h3 class="font-display text-lg font-semibold text-ink">Engagement Funnel</h3>
+          <p class="text-sm text-slate-500 mt-1">How far leads progress before follow-through — meetings, site visits, and HQ visits.</p>
+          <div id="engagementRows" class="mt-6 space-y-6"></div>
+        </div>
+      </section>
+
+      <!-- ============ TAB: PROJECTS ============ -->
+      <section id="tab-projects" class="tab-panel hidden">
+        <div class="flex items-baseline justify-between mb-4">
+          <div>
+            <h3 class="font-display text-lg font-semibold text-ink">Project-wise Performance</h3>
+            <p class="text-sm text-slate-500 mt-1">Conversion outcomes across active projects.</p>
+          </div>
+        </div>
+        <div id="projectCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </section>
+
+      <!-- ===== ALL LEADS (company-wide) ===== -->
+      <section id="tab-allleads" class="tab-panel hidden space-y-4">
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-4 flex flex-wrap gap-3 items-center">
+          <input id="filterSearch" type="text" placeholder="Search name, phone, or lead ID..." class="flex-1 min-w-[180px] px-3 py-2 border border-hair rounded-lg text-sm">
+          <select id="filterClusterHead" class="px-3 py-2 border border-hair rounded-lg text-sm" onchange="onClusterFilterChange()">
+            <option value="">All Cluster Heads</option>
+          </select>
+          <select id="filterRep" class="px-3 py-2 border border-hair rounded-lg text-sm"><option value="">All Sales Reps</option></select>
+          <select id="filterStage" class="px-3 py-2 border border-hair rounded-lg text-sm">
+            <option value="">All Stages</option><option value="Lead">Lead</option><option value="Prospect">Prospect</option><option value="Priority">Priority</option>
+          </select>
+          <select id="filterStatus" class="px-3 py-2 border border-hair rounded-lg text-sm">
+            <option value="">All Statuses</option><option value="Active">Active</option><option value="Converted">Converted</option><option value="Lost">Lost</option><option value="On Hold">On Hold</option>
+          </select>
+          <button onclick="loadAllLeads()" class="px-4 py-2 bg-ink text-white rounded-lg text-sm font-semibold hover:bg-ink2 transition">Filter</button>
+        </div>
+        <p class="text-xs text-slate-400" id="allLeadsSummary"></p>
+        <div id="allLeadsList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </section>
+
+      <!-- ===== UNASSIGNED LEADS ===== -->
+      <section id="tab-unassigned" class="tab-panel hidden">
+        <p class="text-sm text-slate-500 mb-4">These leads had no nursing (no follow-up activity) for 120+ days and were automatically pulled from their sales rep. Assign each one to whoever should pick it up next.</p>
+        <div id="unassignedList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </section>
+
+      <!-- ===== ORGANOGRAM ===== -->
+      <section id="tab-orgchart" class="tab-panel hidden">
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6 sm:p-10 overflow-x-auto">
+          <p class="text-sm text-slate-500 mb-10 text-center">Tap any node to jump to their leads.</p>
+          <div class="flex flex-col items-center min-w-max">
+            <!-- Root: circular avatar overlapping a dark pill, matching the reference org-chart style -->
+            <div class="flex flex-col items-center relative z-10">
+              <div id="orgRootAvatarFallback" class="w-16 h-16 rounded-full ring-4 ring-gold bg-ink text-gold font-display font-bold flex items-center justify-center text-lg shadow-card"></div>
+              <div class="-mt-4 bg-ink text-white rounded-2xl pt-6 pb-3 px-6 shadow-card text-center min-w-[10rem]">
+                <p class="text-sm font-semibold" id="orgRootName">—</p>
+                <p class="text-[11px] text-slate-400 uppercase tracking-wide mt-0.5">Management (DD / ED)</p>
+              </div>
+            </div>
+            <div class="w-px h-8 bg-hair"></div>
+            <div class="org-children flex gap-10" id="orgClusterRow"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== CLUSTER REPORTS ===== -->
+      <section id="tab-clusterreports" class="tab-panel hidden space-y-6">
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-4 flex flex-wrap items-center gap-3">
+          <label class="text-sm font-medium text-slate-600">Viewing:</label>
+          <select id="reportClusterSelect" class="flex-1 min-w-[200px] px-3 py-2 border border-hair rounded-lg text-sm" onchange="loadClusterReport()">
+            <option value="">— Select a Cluster Head —</option>
+          </select>
+        </div>
+        <div id="clusterReportEmpty" class="text-sm text-slate-400 text-center py-10">Pick a Cluster Head above to see their team's collective report.</div>
+        <div id="clusterReportContent" class="hidden space-y-6">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Total Leads</p><p class="font-display text-3xl font-semibold text-ink mt-2" id="crTotal">—</p></div>
+            <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Converted</p><p class="font-display text-3xl font-semibold text-brand-emerald mt-2" id="crConverted">—</p></div>
+            <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Lost</p><p class="font-display text-3xl font-semibold text-brand-rose mt-2" id="crLost">—</p></div>
+            <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Conv. Rate</p><p class="font-display text-3xl font-semibold text-ink mt-2" id="crConvRate">—</p></div>
+          </div>
+          <div>
+            <h3 class="font-display text-base font-semibold text-ink mb-3">Per Sales Rep</h3>
+            <div id="crRepCards" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== MY PROFILE ===== -->
+      <section id="tab-profile" class="tab-panel hidden space-y-6">
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6 flex items-center gap-5">
+          <div class="relative shrink-0">
+            <img id="profileAvatarImg" src="" class="w-20 h-20 rounded-full object-cover border border-hair hidden">
+            <div id="profileAvatarFallback" class="w-20 h-20 rounded-full bg-gold text-ink font-display text-2xl font-semibold flex items-center justify-center"></div>
+            <button type="button" onclick="document.getElementById('avatarFileInput').click()" class="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-ink text-white flex items-center justify-center border-2 border-white hover:bg-ink2 transition" aria-label="Change photo">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
+            </button>
+            <input type="file" id="avatarFileInput" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="uploadAvatar(this.files[0])">
+          </div>
+          <div class="min-w-0">
+            <p class="font-display text-xl font-semibold text-ink" id="profileDisplayName">—</p>
+            <p class="text-sm text-slate-500" id="profileDisplayDesignation">—</p>
+            <span class="inline-block mt-1 text-[11px] font-semibold uppercase tracking-wide bg-slate-100 text-slate-500 px-2 py-0.5 rounded">Management</span>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+          <h3 class="font-display text-base font-semibold text-ink mb-4">Profile Details</h3>
+          <form id="profileForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div><label class="block font-medium text-slate-700 mb-1">Full Name *</label><input id="p_name" required class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div><label class="block font-medium text-slate-700 mb-1">Designation</label><input id="p_designation" placeholder="e.g. Deputy Director" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div><label class="block font-medium text-slate-700 mb-1">Phone Number</label><input id="p_phone" placeholder="017xxxxxxxx" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Email</label>
+              <input id="p_email_display" disabled class="w-full px-3 py-2 border border-hair rounded-lg bg-slate-50 text-slate-400">
+              <p class="text-xs text-slate-400 mt-1">Change email below — it needs your password to confirm.</p>
+            </div>
+            <div class="md:col-span-2 flex justify-end"><button type="submit" class="px-4 py-2 bg-ink text-white rounded-lg text-sm font-semibold hover:bg-ink2">Save Changes</button></div>
+          </form>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+          <h3 class="font-display text-base font-semibold text-ink mb-1">Change Email</h3>
+          <p class="text-xs text-slate-400 mb-4">Requires your current password to confirm it's really you.</p>
+          <form id="emailForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div><label class="block font-medium text-slate-700 mb-1">New Email *</label><input type="email" id="em_new_email" required class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div><label class="block font-medium text-slate-700 mb-1">Current Password *</label><input type="password" id="em_current_password" required class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div class="md:col-span-2 flex justify-end"><button type="submit" class="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800">Update Email</button></div>
+          </form>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+          <h3 class="font-display text-base font-semibold text-ink mb-4">Change Password</h3>
+          <form id="passwordForm" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div><label class="block font-medium text-slate-700 mb-1">Current Password *</label><input type="password" id="pw_old" required class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div><label class="block font-medium text-slate-700 mb-1">New Password *</label><input type="password" id="pw_new" required minlength="6" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div><label class="block font-medium text-slate-700 mb-1">Confirm New Password *</label><input type="password" id="pw_confirm" required minlength="6" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div class="md:col-span-3 flex justify-end"><button type="submit" class="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800">Update Password</button></div>
+          </form>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- ===== EDIT LEAD MODAL ===== -->
+<div id="editModal" class="modal-backdrop fixed inset-0 bg-ink/60 hidden items-center justify-center p-4 z-50">
+  <div class="modal-panel bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+    <div class="flex justify-between items-center px-6 py-4 border-b border-hair shrink-0">
+      <h3 class="font-display text-lg font-semibold text-ink">Update Lead</h3>
+      <button onclick="closeModal('editModal')" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+    </div>
+
+    <div class="overflow-y-auto flex-1 px-6 py-4">
+      <div class="mb-4 bg-slate-50 rounded-xl p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Phone Numbers (max 4 · one primary)</p>
+        <div id="editPhonesList" class="space-y-2 mb-3"></div>
+        <div class="flex gap-2">
+          <input id="newPhoneInput" placeholder="Add another number..." class="flex-1 px-3 py-2 border border-hair rounded-lg text-sm">
+          <button type="button" onclick="addPhoneToEditingLead()" class="px-3 py-2 bg-ink text-white rounded-lg text-sm font-semibold">Add</button>
+        </div>
+      </div>
+
+      <form id="editForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <input type="hidden" id="e_id">
+        <div><label class="block font-medium text-slate-700 mb-1">Lead Name *</label><input id="e_lead_name" required class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Project</label><input id="e_project" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Stage</label><select id="e_stage" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="Lead">Lead</option><option value="Prospect">Prospect</option><option value="Priority">Priority</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Status</label><select id="e_status" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="Active">Active</option><option value="Converted">Converted</option><option value="Lost">Lost</option><option value="On Hold">On Hold</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Client Meeting</label><select id="e_client_meeting" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Site Visit</label><select id="e_site_visit" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Meeting at HQ</label><select id="e_meeting_at_hq" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Next Follow-up (date &amp; time)</label><input type="datetime-local" id="e_next_follow_up" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+        <div class="md:col-span-2"><label class="block font-medium text-slate-700 mb-1">Unmet Demand Reason (if Lost)</label>
+          <select id="e_unmet_demand_reason" class="w-full px-3 py-2 border border-hair rounded-lg">
+            <option value="">-- None --</option>
+            <option>Budget / Price too high</option><option>Location mismatch</option><option>Size / Layout mismatch</option>
+            <option>Payment plan not suitable</option><option>Possession timeline too long</option><option>Legal / Documentation concern</option>
+            <option>Lost to competitor</option><option>Amenities not sufficient</option><option>Financing / Loan issue</option>
+            <option>Not ready to buy yet</option><option>Other</option>
+          </select>
+        </div>
+        <div class="md:col-span-2"><label class="block font-medium text-slate-700 mb-1">Note</label><textarea id="e_note" rows="2" class="w-full px-3 py-2 border border-hair rounded-lg"></textarea></div>
+
+        <details class="md:col-span-2 border border-hair rounded-lg px-3 py-2">
+          <summary class="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">Additional Info <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <div class="mt-3 space-y-3">
+            <div><label class="block font-medium text-slate-700 mb-1">Spouse Name</label><input id="e_spouse_name" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Spouse Phone Numbers (max 2)</label>
+              <div id="editSpousePhonesList" class="space-y-2 mb-2"></div>
+              <div class="flex gap-2">
+                <input id="newSpousePhoneInput" placeholder="Add spouse number..." class="flex-1 px-3 py-2 border border-hair rounded-lg text-sm">
+                <button type="button" onclick="addSpousePhoneToEditingLead()" class="px-3 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold">Add</button>
+              </div>
+            </div>
+          </div>
+        </details>
+      </form>
+    </div>
+
+    <div class="flex justify-between items-center gap-2 px-6 py-4 border-t border-hair shrink-0">
+      <button type="button" onclick="openTransferModal()" class="text-sm font-semibold text-indigo-600 hover:underline">Transfer to another rep →</button>
+      <div class="flex gap-2">
+        <button type="button" onclick="closeModal('editModal')" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Cancel</button>
+        <button type="submit" form="editForm" class="px-4 py-2 bg-ink text-white rounded-lg text-sm font-semibold hover:bg-ink2">Update Lead</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== NURSING JOURNEY MODAL (view-only) ===== -->
+<div id="journeyModal" class="modal-backdrop fixed inset-0 bg-ink/60 hidden items-center justify-center p-4 z-50">
+  <div class="modal-panel bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+    <div class="bg-ink px-6 py-5 flex justify-between items-start shrink-0">
+      <div>
+        <p class="text-[11px] uppercase tracking-[0.14em] text-gold font-semibold">Nursing Journey</p>
+        <p class="font-display text-lg font-semibold text-white mt-0.5" id="journeyLeadName">—</p>
+        <p class="text-xs text-slate-400 mt-0.5" id="journeyLeadMeta"></p>
+      </div>
+      <button onclick="closeModal('journeyModal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+    </div>
+    <div class="p-6 flex-1 min-h-0 overflow-y-auto">
+      <div id="activityTimeline" class="space-y-4 pr-1"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TRANSFER MODAL (company-wide — any rep, any cluster) ===== -->
+<div id="transferModal" class="modal-backdrop fixed inset-0 bg-ink/60 hidden items-center justify-center p-4 z-50">
+  <div class="modal-panel bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+    <h3 class="font-display text-lg font-semibold text-ink mb-1">Transfer Lead Ownership</h3>
+    <p class="text-xs text-slate-500 mb-4">As Management, you can transfer this lead to ANY sales rep company-wide.</p>
+    <select id="transferRepSelect" class="w-full p-2 border border-hair rounded-lg text-sm mb-4"></select>
+    <div class="flex justify-end gap-2">
+      <button onclick="closeModal('transferModal')" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Cancel</button>
+      <button onclick="submitTransfer()" class="px-4 py-2 bg-ink text-white rounded-lg text-sm font-semibold hover:bg-ink2">Confirm Transfer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---------- Auth gate: role must check out (token now lives in an HttpOnly cookie) ----------
+  // Bug #6 fix: JWT moved to an HttpOnly cookie set by authController.login — it is never
+  // present in localStorage or readable by JS, so it can't be stolen via XSS. role/name
+  // are kept in localStorage for redirect/display only; they were never the security boundary.
+  const role = localStorage.getItem('role');
+  const userName = localStorage.getItem('name');
+  // NOTE: This is a UX convenience only, to avoid a flash of this page before the API
+  // rejects an unauthenticated/wrong-role request — real enforcement is server-side via
+  // authMiddleware.js (cookie) + roleMiddleware.js (role), on every request.
+  if (role !== 'DD_ED') window.location.href = 'login.html';
+  document.getElementById('sidebarUserName').textContent = userName || '';
+
+  function redirectToLogin() { localStorage.clear(); window.location.href = 'login.html'; }
+
+  async function logout() {
+    // Bug #6 fix: must tell the server to clear the cookie — localStorage.clear() alone
+    // would leave the still-valid HttpOnly cookie authenticating API requests.
+    try { await apiFetch(`${API}/auth/logout`, { method: 'POST' }); }
+    catch (err) { /* best-effort */ }
+    redirectToLogin();
+  }
+
+  const API = 'http://localhost:5000/api';
+
+  // Bug #6 fix: wrapper ensures `credentials: 'include'` (required for the cookie to be
+  // sent) is never missed on an individual call, and centralizes 401 handling.
+  async function apiFetch(url, options = {}) {
+    const res = await fetch(url, { ...options, credentials: 'include' });
+    if (res.status === 401) redirectToLogin();
+    return res;
+  }
+
+  const authHeadersJSON = { 'Content-Type': 'application/json' };
+
+  // ---------- Sidenav (mobile drawer) ----------
+  const sidenav = document.getElementById('sidenav');
+  const overlay = document.getElementById('overlay');
+  function openSidenav() {
+    sidenav.classList.remove('-translate-x-full');
+    overlay.classList.remove('hidden');
+  }
+  function closeSidenav() {
+    sidenav.classList.add('-translate-x-full');
+    overlay.classList.add('hidden');
+  }
+
+  // ---------- Tabs ----------
+  const TAB_META = {
+    overview:      { eyebrow: 'Overview',    title: 'Welcome back' + (userName ? ', ' + userName.split(' ')[0] : ''), subtitle: 'Company-wide pipeline snapshot' },
+    source:        { eyebrow: 'Lead Source', title: 'Lead Source',      subtitle: 'Origination channels across the company' },
+    lost:          { eyebrow: 'Lost Analysis', title: 'Lost Analysis',  subtitle: 'Where and why the pipeline is leaking' },
+    engagement:    { eyebrow: 'Engagement',  title: 'Engagement',       subtitle: 'Meeting, site visit, and HQ visit follow-through' },
+    projects:      { eyebrow: 'Projects',    title: 'Project-wise Performance', subtitle: 'Conversion outcomes by project' },
+    allleads:      { eyebrow: 'All Leads',   title: 'All Leads',        subtitle: 'Every lead, company-wide — view, edit, and transfer' },
+    unassigned:    { eyebrow: 'Unassigned',  title: 'Unassigned Leads', subtitle: 'Leads pulled from reps after 120 days with no nursing' },
+    orgchart:      { eyebrow: 'Organogram',  title: 'Company Organogram', subtitle: 'DD/ED → Cluster Heads → Sales Men' },
+    clusterreports:{ eyebrow: 'Cluster Reports', title: 'Cluster Reports', subtitle: "A Cluster Head's team, collectively" },
+    profile:       { eyebrow: 'Profile',     title: 'My Profile',       subtitle: 'Photo, contact info, and security' },
+  };
+
+  let latestData = null;
+  const chartInstances = {};
+
+  function switchTab(tab) {
+    Object.keys(TAB_META).forEach(t => {
+      document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+      const navBtn = document.querySelector(`.nav-item[data-tab="${t}"]`);
+      navBtn.dataset.active = (t === tab) ? 'true' : 'false';
+      navBtn.classList.toggle('text-slate-300', t !== tab);
+    });
+    const meta = TAB_META[tab];
+    document.getElementById('pageEyebrow').textContent = meta.eyebrow;
+    document.getElementById('pageTitle').textContent = meta.title;
+    document.getElementById('pageSubtitle').textContent = meta.subtitle;
+
+    closeSidenav();
+
+    if (latestData) renderTab(tab);
+    if (tab === 'allleads' && !allLeadsFiltersLoaded) loadAllLeadsFilters();
+    if (tab === 'unassigned') loadUnassignedLeads();
+    if (tab === 'orgchart' && !orgChartLoaded) loadOrgChart();
+    if (tab === 'clusterreports' && !clusterReportFiltersLoaded) loadClusterReportFilters();
+  }
+
+  // ---------- Data fetch ----------
+  let hasLoadedOnce = false;
+
+  async function loadDashboard() {
+    const bar = document.getElementById('loadingBar');
+    const refreshBtn = document.getElementById('refreshBtn');
+    refreshBtn.disabled = true;
+    bar.style.width = '30%';
+
+    try {
+      const res = await fetch('http://localhost:5000/api/dashboard/stats', {
+        
+      });
+      bar.style.width = '70%';
+      const result = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return; }
+        throw new Error(result.message || 'Could not load dashboard data');
+      }
+
+      latestData = result;
+      renderAllStaticContent(result);
+
+      const activeTab = document.querySelector('.nav-item[data-active="true"]')?.dataset.tab || 'overview';
+      renderTab(activeTab);
+
+      document.getElementById('lastUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      bar.style.width = '100%';
+      setTimeout(() => { bar.style.width = '0%'; }, 400);
+
+      // Only toast on a manual refresh, not the silent page-load fetch
+      if (hasLoadedOnce) showToast('Dashboard updated', 'success', 2200);
+      hasLoadedOnce = true;
+
+    } catch (err) {
+      console.error('Error loading dashboard stats:', err);
+      showToast(err.message || 'Something went wrong while loading the dashboard.', 'error');
+      bar.style.width = '0%';
+    } finally {
+      refreshBtn.disabled = false;
+    }
+  }
+
+  // Renders everything that ISN'T a Chart.js canvas — safe to do immediately
+  function renderAllStaticContent(data) {
+    const kpi = data.kpi || {};
+    document.getElementById('kpiTotal').textContent = kpi.total_leads ?? 0;
+    document.getElementById('kpiProspects').textContent = kpi.prospects ?? 0;
+    document.getElementById('kpiPriority').textContent = kpi.priority ?? 0;
+    document.getElementById('kpiConverted').textContent = kpi.converted ?? 0;
+    document.getElementById('kpiLost').textContent = kpi.lost ?? 0;
+    document.getElementById('kpiConvRate').textContent = (parseFloat(kpi.conversion_rate) || 0).toFixed(1) + '%';
+
+    // Portfolio health ring
+    const convRate = parseFloat(kpi.conversion_rate) || 0;
+    const lostRate = parseFloat(kpi.lost_rate) || 0;
+    document.getElementById('healthRing').style.setProperty('--pct', convRate);
+    document.getElementById('ringConvRate').textContent = convRate.toFixed(1) + '%';
+    document.getElementById('ringLostRate').textContent = 'Lost rate ' + lostRate.toFixed(1) + '%';
+
+    // Stage bars
+    const stageColors = { Lead: '#4F46E5', Prospect: '#C9A15A', Priority: '#D97706' };
+    const stageTotal = (data.by_stage || []).reduce((s, r) => s + Number(r.count), 0) || 1;
+    document.getElementById('stageBars').innerHTML = (data.by_stage || []).map(s => {
+      const pct = (Number(s.count) / stageTotal * 100).toFixed(0);
+      const color = stageColors[s.stage] || '#94A3B8';
+      return `
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="font-medium text-slate-600">${s.stage}</span>
+            <span class="text-slate-400">${s.count} · ${pct}%</span>
+          </div>
+          <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
+            <div class="h-full rounded-full" style="width:${pct}%; background:${color};"></div>
+          </div>
+        </div>`;
+    }).join('') || '<p class="text-sm text-slate-400">No stage data yet.</p>';
+
+    // Category split (Residential vs Commercial)
+    const catMap = {};
+    (data.by_category || []).forEach(c => { catMap[c.category || 'Unassigned'] = Number(c.count); });
+    const resCount = catMap['Residential'] || 0;
+    const comCount = catMap['Commercial'] || 0;
+    document.getElementById('categorySplit').innerHTML = `
+      <div class="bg-slate-50 rounded-xl p-3">
+        <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Residential</p>
+        <p class="font-display text-2xl font-semibold text-ink mt-1">${resCount}</p>
+      </div>
+      <div class="bg-slate-50 rounded-xl p-3">
+        <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Commercial</p>
+        <p class="font-display text-2xl font-semibold text-ink mt-1">${comCount}</p>
+      </div>`;
+
+    // Lead source legend
+    const sourceColors = ['#4F46E5', '#C9A15A', '#16A34A', '#D97706', '#E11D48', '#0EA5E9'];
+    const sourceTotal = (data.by_source || []).reduce((s, r) => s + Number(r.count), 0) || 1;
+    document.getElementById('sourceLegend').innerHTML = (data.by_source || []).map((s, i) => {
+      const pct = (Number(s.count) / sourceTotal * 100).toFixed(1);
+      return `
+        <div class="flex items-center justify-between border-b border-hair last:border-0 pb-3 last:pb-0">
+          <div class="flex items-center gap-2.5">
+            <span class="w-2.5 h-2.5 rounded-full" style="background:${sourceColors[i % sourceColors.length]}"></span>
+            <span class="text-sm font-medium text-ink">${s.source}</span>
+          </div>
+          <div class="text-right">
+            <span class="text-sm font-semibold text-ink">${s.count}</span>
+            <span class="text-xs text-slate-400 ml-1">${pct}%</span>
+          </div>
+        </div>`;
+    }).join('') || '<p class="text-sm text-slate-400">No source data yet.</p>';
+
+    // Lost ratio block
+    document.getElementById('lostRatioValue').textContent = lostRate.toFixed(1) + '%';
+    document.getElementById('lostRatioCaption').textContent = `${kpi.lost ?? 0} of ${kpi.total_leads ?? 0} leads lost`;
+
+    // Engagement rows
+    const eng = data.engagement || {};
+    const rows = [
+      { label: 'Client Meeting Held', key: 'client_meeting', color: '#4F46E5', notDoneLabel: 'have not had a client meeting yet' },
+      { label: 'Site Visit Completed', key: 'site_visit', color: '#C9A15A', notDoneLabel: 'have not completed a site visit yet' },
+      { label: 'HQ Visit Completed', key: 'hq_visit', color: '#16A34A', notDoneLabel: 'have not visited HQ yet' },
+    ];
+    document.getElementById('engagementRows').innerHTML = rows.map(r => {
+      const m = eng[r.key] || { done: 0, pct_done: 0 };
+      const notDone = (100 - m.pct_done).toFixed(1);
+      return `
+        <div>
+          <div class="flex justify-between items-baseline mb-1.5">
+            <span class="text-sm font-medium text-ink">${r.label}</span>
+            <span class="font-display text-xl font-semibold text-ink">${m.pct_done.toFixed(1)}%</span>
+          </div>
+          <div class="h-2.5 rounded-full bg-slate-100 overflow-hidden">
+            <div class="h-full rounded-full" style="width:${m.pct_done}%; background:${r.color};"></div>
+          </div>
+          <p class="text-xs text-slate-400 mt-1.5">${m.done} of ${eng.total ?? 0} leads · ${notDone}% ${r.notDoneLabel}</p>
+        </div>`;
+    }).join('');
+
+    // Project cards
+    document.getElementById('projectCards').innerHTML = (data.by_project || []).map(p => {
+      const rate = parseFloat(p.conversion_rate || 0).toFixed(1);
+      return `
+        <div class="bg-white rounded-xl shadow-card border border-hair p-5">
+          <p class="font-display text-base font-semibold text-ink truncate">${p.project}</p>
+          <div class="grid grid-cols-3 gap-2 mt-4 text-center">
+            <div>
+              <p class="text-lg font-semibold text-ink">${p.total_leads}</p>
+              <p class="text-[10px] uppercase tracking-wide text-slate-400">Total</p>
+            </div>
+            <div>
+              <p class="text-lg font-semibold text-brand-emerald">${p.converted}</p>
+              <p class="text-[10px] uppercase tracking-wide text-slate-400">Won</p>
+            </div>
+            <div>
+              <p class="text-lg font-semibold text-brand-rose">${p.lost}</p>
+              <p class="text-[10px] uppercase tracking-wide text-slate-400">Lost</p>
+            </div>
+          </div>
+          <div class="mt-4">
+            <div class="flex justify-between text-xs text-slate-400 mb-1">
+              <span>Conversion Rate</span><span class="font-semibold text-ink">${rate}%</span>
+            </div>
+            <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+              <div class="h-full rounded-full bg-gold" style="width:${rate}%"></div>
+            </div>
+          </div>
+        </div>`;
+    }).join('') || '<p class="text-sm text-slate-400 col-span-full">No project data yet.</p>';
+  }
+
+  // Renders (or resizes) the Chart.js canvases belonging to one tab —
+  // done lazily/on-visit so canvases are never sized while display:none
+  function renderTab(tab) {
+    if (tab === 'source') renderSourceChart();
+    if (tab === 'lost') renderLostChart();
+  }
+
+  function destroyChart(key) {
+    if (chartInstances[key]) { chartInstances[key].destroy(); delete chartInstances[key]; }
+  }
+
+  function renderSourceChart() {
+    destroyChart('source');
+    const data = latestData.by_source || [];
+    const colors = ['#4F46E5', '#C9A15A', '#16A34A', '#D97706', '#E11D48', '#0EA5E9'];
+    const ctx = document.getElementById('sourceChart').getContext('2d');
+    chartInstances.source = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: data.map(s => s.source),
+        datasets: [{ data: data.map(s => s.count), backgroundColor: colors, borderWidth: 0 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '64%',
+        plugins: { legend: { display: false } }
+      }
+    });
+  }
+
+  function renderLostChart() {
+    destroyChart('lost');
+    const data = [...(latestData.by_unmet_demand || [])].sort((a, b) => Number(b.count) - Number(a.count));
+    const ctx = document.getElementById('lostChart').getContext('2d');
+    chartInstances.lost = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.map(r => r.reason),
+        datasets: [{ data: data.map(r => r.count), backgroundColor: '#E11D48', borderRadius: 6, maxBarThickness: 22 }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#F1F2F4' } },
+          y: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // Init
+  switchTab('overview');
+  loadDashboard();
+
+  // ============================================================
+  // Everything below is new for Management: All Leads (view/edit/
+  // transfer any lead), Organogram, Cluster Reports, and My Profile.
+  // ============================================================
+
+  // UI fix: modals now animate in/out instead of instantly appearing.
+  function openModal(id) {
+    const m = document.getElementById(id);
+    m.classList.add('modal-enter');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+    requestAnimationFrame(() => requestAnimationFrame(() => m.classList.remove('modal-enter')));
+  }
+  function closeModal(id) {
+    const m = document.getElementById(id);
+    m.classList.add('modal-enter');
+    setTimeout(() => {
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+      m.classList.remove('modal-enter');
+    }, 220);
+  }
+
+  function initials(name) {
+    if (!name) return '?';
+    return name.trim().split(/\s+/).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  }
+  function fileUrl(p) { return p ? API.replace('/api', '') + p : null; }
+  function formatDateTime(v) {
+    if (!v) return 'Not set';
+    return new Date(v).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+  function toDatetimeLocalValue(v) { return v ? String(v).slice(0, 16) : ''; }
+  function toMySQLDatetime(v) { if (!v) return null; return v.length === 16 ? v.replace('T', ' ') + ':00' : v.replace('T', ' '); }
+
+  const STAGE_COLOR = { Lead: 'bg-indigo-100 text-indigo-700', Prospect: 'bg-amber-100 text-amber-700', Priority: 'bg-rose-100 text-rose-700' };
+  const STATUS_COLOR = { Active: 'bg-emerald-100 text-emerald-700', Converted: 'bg-emerald-600 text-white', Lost: 'bg-slate-200 text-slate-600', 'On Hold': 'bg-amber-100 text-amber-700' };
+
+  // UI fix: skeleton loader shown while a lead-list section is actually fetching.
+  function skeletonLeadCard() {
+    return `<div class="bg-white rounded-xl shadow-card border border-hair p-4 flex flex-col gap-2.5">
+      <div class="flex justify-between items-start gap-2">
+        <div class="skeleton-block h-4 w-28"></div>
+        <div class="flex gap-1.5"><div class="skeleton-block h-7 w-16 rounded-lg"></div><div class="skeleton-block h-7 w-12 rounded-lg"></div></div>
+      </div>
+      <div class="skeleton-block h-3 w-24"></div>
+      <div class="flex gap-1.5"><div class="skeleton-block h-4 w-14 rounded"></div><div class="skeleton-block h-4 w-14 rounded"></div></div>
+      <div class="skeleton-block h-3 w-32"></div>
+    </div>`;
+  }
+  function renderSkeleton(containerId, count, templateFn) {
+    const el = document.getElementById(containerId);
+    if (el) el.innerHTML = Array(count).fill(0).map(templateFn).join('');
+  }
+
+  function leadCard(lead) {
+    const stageCls = STAGE_COLOR[lead.stage] || 'bg-slate-100 text-slate-600';
+    const statusCls = STATUS_COLOR[lead.status] || 'bg-slate-100 text-slate-600';
+    return `
+      <div class="bg-white rounded-xl shadow-card border border-hair p-4 flex flex-col gap-2">
+        <div class="flex justify-between items-start gap-2">
+          <div class="min-w-0">
+            <p class="font-display text-base font-semibold text-ink truncate">${lead.lead_name}</p>
+            <p class="text-xs text-slate-400 font-mono">${lead.lead_id || ''}</p>
+            <p class="text-xs text-slate-500 mt-0.5">Rep: <b>${lead.sales_rep_name || '—'}</b></p>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick='openJourneyModal(${JSON.stringify(lead).replace(/'/g, "&#39;")})' title="Nursing Journey" class="text-xs font-semibold bg-goldsoft/60 hover:bg-goldsoft text-ink px-2.5 py-1.5 rounded-lg transition flex items-center gap-1">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+              Journey
+            </button>
+            <button onclick='openEditModal(${JSON.stringify(lead).replace(/'/g, "&#39;")})' class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-ink px-2.5 py-1.5 rounded-lg transition">Edit</button>
+          </div>
+        </div>
+        <p class="text-sm text-slate-600">${lead.lead_phone || ''}</p>
+        <div class="flex flex-wrap gap-1.5">
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded ${stageCls}">${lead.stage}</span>
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded ${statusCls}">${lead.status}</span>
+        </div>
+        <div class="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>
+          ${formatDateTime(lead.next_follow_up)}
+        </div>
+        ${lead.project ? `<p class="text-xs text-slate-400">${lead.project}</p>` : ''}
+      </div>`;
+  }
+
+  // ---------- All Leads (company-wide) ----------
+  let allLeadsFiltersLoaded = false;
+  let allClusterHeads = [];   // [{id, name}]
+  let allRepsByCluster = {};  // { clusterHeadId: [{id, name}] }
+
+  async function loadAllLeadsFilters() {
+    allLeadsFiltersLoaded = true;
+    try {
+      const res = await apiFetch(`${API}/users/cluster-heads`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      allClusterHeads = result.data;
+
+      const clusterSelect = document.getElementById('filterClusterHead');
+      clusterSelect.innerHTML = '<option value="">All Cluster Heads</option>' +
+        allClusterHeads.map(ch => `<option value="${ch.id}">${ch.name}</option>`).join('');
+
+      // Pull each cluster's rep list from org-chart data (loaded once, reused for filtering)
+      const orgRes = await apiFetch(`${API}/dashboard/org-chart`);
+      const orgResult = await orgRes.json();
+      if (orgRes.ok) {
+        allRepsByCluster = {};
+        orgResult.clusters.forEach(c => { allRepsByCluster[c.id] = c.reps; });
+      }
+
+      populateRepFilter('');
+      loadAllLeads();
+    } catch (err) {
+      showToast(err.message || 'Could not load filters', 'error');
+    }
+  }
+
+  function populateRepFilter(clusterHeadId) {
+    const repSelect = document.getElementById('filterRep');
+    let reps = [];
+    if (clusterHeadId && allRepsByCluster[clusterHeadId]) {
+      reps = allRepsByCluster[clusterHeadId];
+    } else {
+      Object.values(allRepsByCluster).forEach(list => { reps = reps.concat(list); });
+    }
+    repSelect.innerHTML = '<option value="">All Sales Reps</option>' + reps.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+  }
+
+  function onClusterFilterChange() {
+    populateRepFilter(document.getElementById('filterClusterHead').value);
+    loadAllLeads();
+  }
+
+  async function loadAllLeads() {
+    const params = new URLSearchParams();
+    const search = document.getElementById('filterSearch').value.trim();
+    const clusterHeadId = document.getElementById('filterClusterHead').value;
+    const repId = document.getElementById('filterRep').value;
+    const stage = document.getElementById('filterStage').value;
+    const status = document.getElementById('filterStatus').value;
+    if (search) params.set('search', search);
+    if (clusterHeadId) params.set('cluster_head_id', clusterHeadId);
+    if (repId) params.set('sales_rep_id', repId);
+    if (stage) params.set('stage', stage);
+    if (status) params.set('status', status);
+
+    // UI fix: skeleton while filter results are loading.
+    renderSkeleton('allLeadsList', 6, skeletonLeadCard);
+
+    try {
+      const res = await apiFetch(`${API}/leads?${params.toString()}`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      const el = document.getElementById('allLeadsList');
+      el.innerHTML = result.data.length ? result.data.map(l => leadCard(l)).join('') : `<p class="text-sm text-slate-400 col-span-full">No leads match this filter.</p>`;
+
+      const chName = clusterHeadId ? (allClusterHeads.find(c => String(c.id) === clusterHeadId)?.name) : null;
+      document.getElementById('allLeadsSummary').textContent =
+        `${result.data.length} lead(s)` + (chName ? ` — ${chName}'s team` : ' — company-wide');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+  document.getElementById('filterSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadAllLeads(); });
+
+  // ---------- Edit Lead (+ phone/spouse contact management) ----------
+  let editingLeadId = null;
+
+  async function openEditModal(lead) {
+    editingLeadId = lead.id;
+    document.getElementById('e_id').value = lead.id;
+    document.getElementById('e_lead_name').value = lead.lead_name;
+    document.getElementById('e_project').value = lead.project || '';
+    document.getElementById('e_stage').value = lead.stage;
+    document.getElementById('e_status').value = lead.status;
+    document.getElementById('e_client_meeting').value = lead.client_meeting;
+    document.getElementById('e_site_visit').value = lead.site_visit;
+    document.getElementById('e_meeting_at_hq').value = lead.meeting_at_hq;
+    document.getElementById('e_next_follow_up').value = toDatetimeLocalValue(lead.next_follow_up);
+    document.getElementById('e_unmet_demand_reason').value = lead.unmet_demand_reason || '';
+    document.getElementById('e_note').value = lead.note || '';
+    document.getElementById('e_spouse_name').value = lead.spouse_name || '';
+
+    openModal('editModal');
+    await loadEditingLeadContacts();
+  }
+
+  // ---------- Nursing Journey (dedicated, view-only for Management) ----------
+  let journeyLeadId = null;
+
+  const ACTIVITY_STYLE = {
+    created:        { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>' },
+    note:           { bg: 'bg-slate-200',   text: 'text-slate-600',   icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 4h16v12H8l-4 4z"/></svg>' },
+    call:           { bg: 'bg-indigo-100',  text: 'text-indigo-700',  icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.7a2 2 0 0 1-.4 2.1L8 9.9a16 16 0 0 0 6 6l1.4-1.4a2 2 0 0 1 2.1-.4c.9.3 1.8.5 2.7.6a2 2 0 0 1 1.8 2.2Z"/></svg>' },
+    meeting:        { bg: 'bg-amber-100',   text: 'text-amber-700',   icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
+    stage_change:   { bg: 'bg-goldsoft',    text: 'text-ink',         icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>' },
+    status_change:  { bg: 'bg-purple-100',  text: 'text-purple-700',  icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>' },
+    follow_up_set:  { bg: 'bg-blue-100',    text: 'text-blue-700',    icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>' },
+    meeting_update: { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>' },
+    transfer:       { bg: 'bg-indigo-100',  text: 'text-indigo-700',  icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 3l4 4-4 4"/><path d="M20 7H4"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h16"/></svg>' },
+    unassigned:     { bg: 'bg-rose-100',    text: 'text-brand-rose', icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 9v4m0 4h.01M10.3 3.9 2.7 17a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>' },
+  };
+
+  function renderActivityTimeline(activities) {
+    const el = document.getElementById('activityTimeline');
+    if (!activities.length) {
+      el.innerHTML = `<p class="text-sm text-slate-400 text-center py-8">No activity logged for this lead yet.</p>`;
+      return;
+    }
+    el.innerHTML = activities.map((a, i) => {
+      const style = ACTIVITY_STYLE[a.activity_type] || ACTIVITY_STYLE.note;
+      const isLast = i === activities.length - 1;
+      return `
+        <div class="relative flex gap-3">
+          ${!isLast ? `<span class="absolute left-[13px] top-7 bottom-[-16px] w-px bg-hair"></span>` : ''}
+          <div class="w-7 h-7 rounded-full ${style.bg} ${style.text} flex items-center justify-center shrink-0 z-10">${style.icon}</div>
+          <div class="min-w-0 flex-1 pt-0.5 pb-1">
+            <p class="text-sm text-ink leading-snug">${a.description}</p>
+            <p class="text-xs text-slate-400 mt-0.5">${a.actor_name || 'System'} · ${formatDateTime(a.created_at)}</p>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function openJourneyModal(lead) {
+    journeyLeadId = lead.id;
+    document.getElementById('journeyLeadName').textContent = lead.lead_name;
+    document.getElementById('journeyLeadMeta').textContent = [lead.lead_id, lead.lead_phone].filter(Boolean).join(' · ');
+    openModal('journeyModal');
+    try {
+      const res = await apiFetch(`${API}/leads/${journeyLeadId}/activities`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      renderActivityTimeline(result.data);
+    } catch (err) {
+      showToast(err.message || 'Could not load activity timeline', 'error');
+    }
+  }
+
+  async function loadEditingLeadContacts() {
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/phones`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+
+      document.getElementById('editPhonesList').innerHTML = result.phones.map(p => `
+        <div class="flex items-center justify-between bg-white border border-hair rounded-lg px-3 py-2">
+          <span class="text-sm ${p.is_primary ? 'font-semibold text-ink' : 'text-slate-600'}">${p.phone_number} ${p.is_primary ? '<span class="text-[10px] uppercase tracking-wide text-gold ml-1">Primary</span>' : ''}</span>
+          <div class="flex items-center gap-2">
+            ${!p.is_primary ? `<button type="button" onclick="setPrimaryPhone(${p.id})" class="text-xs text-indigo-600 hover:underline">Set Primary</button>` : ''}
+            <button type="button" onclick="deletePhone(${p.id})" class="text-xs text-brand-rose hover:underline">Remove</button>
+          </div>
+        </div>`).join('');
+
+      document.getElementById('editSpousePhonesList').innerHTML = result.spouse_phones.map(p => `
+        <div class="flex items-center justify-between bg-white border border-hair rounded-lg px-3 py-2">
+          <span class="text-sm text-slate-600">${p.phone_number}</span>
+          <button type="button" onclick="deleteSpousePhone(${p.id})" class="text-xs text-brand-rose hover:underline">Remove</button>
+        </div>`).join('');
+    } catch (err) { showToast(err.message, 'error'); }
+  }
+
+  async function addPhoneToEditingLead() {
+    const input = document.getElementById('newPhoneInput');
+    if (!input.value.trim()) return;
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/phones`, { method: 'POST', headers: authHeadersJSON, body: JSON.stringify({ phone_number: input.value.trim() }) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      input.value = ''; showToast('Phone number added');
+      await loadEditingLeadContacts();
+    } catch (err) { showToast(err.message, 'error'); }
+  }
+  async function setPrimaryPhone(phoneId) {
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/phones/${phoneId}/primary`, { method: 'PUT', headers: authHeadersJSON });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showToast('Primary number updated');
+      await loadEditingLeadContacts();
+    } catch (err) { showToast(err.message, 'error'); }
+  }
+  async function deletePhone(phoneId) {
+    if (!confirm('Remove this phone number?')) return;
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/phones/${phoneId}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showToast('Phone number removed');
+      await loadEditingLeadContacts();
+    } catch (err) { showToast(err.message, 'error'); }
+  }
+  async function addSpousePhoneToEditingLead() {
+    const input = document.getElementById('newSpousePhoneInput');
+    if (!input.value.trim()) return;
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/spouse-phones`, { method: 'POST', headers: authHeadersJSON, body: JSON.stringify({ phone_number: input.value.trim() }) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      input.value = ''; showToast('Spouse number added');
+      await loadEditingLeadContacts();
+    } catch (err) { showToast(err.message, 'error'); }
+  }
+  async function deleteSpousePhone(phoneId) {
+    if (!confirm('Remove this spouse phone number?')) return;
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/spouse-phones/${phoneId}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showToast('Spouse number removed');
+      await loadEditingLeadContacts();
+    } catch (err) { showToast(err.message, 'error'); }
+  }
+
+  document.getElementById('editForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('e_id').value;
+    const payload = {
+      lead_name: document.getElementById('e_lead_name').value,
+      project: document.getElementById('e_project').value,
+      stage: document.getElementById('e_stage').value,
+      status: document.getElementById('e_status').value,
+      client_meeting: document.getElementById('e_client_meeting').value,
+      site_visit: document.getElementById('e_site_visit').value,
+      meeting_at_hq: document.getElementById('e_meeting_at_hq').value,
+      next_follow_up: toMySQLDatetime(document.getElementById('e_next_follow_up').value),
+      unmet_demand_reason: document.getElementById('e_unmet_demand_reason').value || null,
+      note: document.getElementById('e_note').value
+    };
+    try {
+      const res = await apiFetch(`${API}/leads/${id}`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify(payload) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+
+      const spouseName = document.getElementById('e_spouse_name').value;
+      await apiFetch(`${API}/leads/${id}/spouse`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify({ spouse_name: spouseName || null }) });
+
+      showToast('Lead updated successfully!');
+      closeModal('editModal');
+      loadAllLeads();
+    } catch (err) { showToast(err.message, 'error'); }
+  });
+
+  // ---------- Transfer (Management: ANY rep, ANY cluster) ----------
+  function openTransferModal() {
+    const select = document.getElementById('transferRepSelect');
+    let options = [];
+    allClusterHeads.forEach(ch => {
+      const reps = allRepsByCluster[ch.id] || [];
+      if (reps.length) {
+        options.push(`<optgroup label="${ch.name}'s team">` + reps.map(r => `<option value="${r.id}">${r.name}</option>`).join('') + `</optgroup>`);
+      }
+    });
+    select.innerHTML = options.join('');
+    openModal('transferModal');
+  }
+  async function submitTransfer() {
+    const leadId = editingLeadId;
+    const newRepId = document.getElementById('transferRepSelect').value;
+    try {
+      const res = await apiFetch(`${API}/leads/${leadId}/transfer`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify({ new_sales_rep_id: newRepId }) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showToast(result.message);
+      closeModal('transferModal');
+      closeModal('editModal');
+      loadAllLeads();
+      loadUnassignedLeads();
+    } catch (err) { showToast(err.message, 'error'); }
+  }
+
+  // ---------- Unassigned Leads pool ----------
+  async function loadUnassignedLeads() {
+    // UI fix: skeleton while unassigned leads are loading.
+    renderSkeleton('unassignedList', 4, skeletonLeadCard);
+    try {
+      const res = await apiFetch(`${API}/leads?unassigned=true`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+
+      const el = document.getElementById('unassignedList');
+      el.innerHTML = result.data.length
+        ? result.data.map(l => unassignedLeadCard(l)).join('')
+        : `<p class="text-sm text-slate-400 col-span-full">No unassigned leads right now. 🎉</p>`;
+
+      const badge = document.getElementById('badgeUnassigned');
+      if (result.data.length > 0) { badge.textContent = result.data.length; badge.classList.remove('hidden'); }
+      else badge.classList.add('hidden');
+    } catch (err) {
+      showToast(err.message || 'Could not load unassigned leads', 'error');
+    }
+  }
+
+  function unassignedLeadCard(lead) {
+    return `
+      <div class="bg-white rounded-xl shadow-card border border-hair p-4 flex flex-col gap-2">
+        <div class="flex justify-between items-start gap-2">
+          <div class="min-w-0">
+            <p class="font-display text-base font-semibold text-ink truncate">${lead.lead_name}</p>
+            <p class="text-xs text-slate-400 font-mono">${lead.lead_id || ''}</p>
+          </div>
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-brand-rose/10 text-brand-rose shrink-0">Unassigned</span>
+        </div>
+        <p class="text-sm text-slate-600">${lead.lead_phone || ''}</p>
+        <p class="text-xs text-slate-500">Previously with: <b>${lead.previous_sales_rep_name || 'Unknown'}</b></p>
+        <p class="text-xs text-slate-400">Unassigned ${formatDateTime(lead.unassigned_at)}</p>
+        ${lead.project ? `<p class="text-xs text-slate-400">${lead.project}</p>` : ''}
+        <div class="flex gap-2 mt-2">
+          <button onclick='openJourneyModal(${JSON.stringify(lead).replace(/'/g, "&#39;")})' class="flex-1 text-center text-xs font-semibold bg-goldsoft/60 hover:bg-goldsoft text-ink py-2 rounded-lg transition">View Journey</button>
+          <button onclick="openAssignModal(${lead.id})" class="flex-1 text-center text-sm font-semibold bg-ink text-white py-2 rounded-lg hover:bg-ink2 transition">Assign to…</button>
+        </div>
+      </div>`;
+  }
+
+  async function openAssignModal(leadId) {
+    editingLeadId = leadId;
+    if (!allLeadsFiltersLoaded) await loadAllLeadsFilters();
+    openTransferModal();
+  }
+
+  // ---------- Organogram ----------
+  let orgChartLoaded = false;
+  let orgChartData = null;
+
+  // Reference-style org chart: each cluster gets its own color from this palette,
+  // cycling if there are more clusters than colors. The header pill, avatar ring,
+  // and every rep card in that column all share the same hue — this is what gives
+  // the "colored departments" look from the reference image.
+  const ORG_PALETTE = [
+    { pill: 'bg-blue-500',   ring: 'ring-blue-400',   repBg: 'bg-blue-50',   repBorder: 'border-blue-200',   repText: 'text-blue-700',   repSub: 'text-blue-400' },
+    { pill: 'bg-lime-500',   ring: 'ring-lime-400',   repBg: 'bg-lime-50',   repBorder: 'border-lime-200',   repText: 'text-lime-700',   repSub: 'text-lime-500' },
+    { pill: 'bg-amber-400',  ring: 'ring-amber-300',  repBg: 'bg-amber-50',  repBorder: 'border-amber-200',  repText: 'text-amber-700',  repSub: 'text-amber-500' },
+    { pill: 'bg-violet-500', ring: 'ring-violet-400', repBg: 'bg-violet-50', repBorder: 'border-violet-200', repText: 'text-violet-700', repSub: 'text-violet-400' },
+    { pill: 'bg-orange-500', ring: 'ring-orange-400', repBg: 'bg-orange-50', repBorder: 'border-orange-200', repText: 'text-orange-700', repSub: 'text-orange-400' },
+    { pill: 'bg-cyan-500',   ring: 'ring-cyan-400',   repBg: 'bg-cyan-50',   repBorder: 'border-cyan-200',   repText: 'text-cyan-700',   repSub: 'text-cyan-400' },
+  ];
+
+  // Minimal local escape — dashboard.html doesn't have a shared escapeHtml() yet,
+  // but names rendered here are still user-supplied, so guard against injection.
+  function orgEscape(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  async function loadOrgChart() {
+    orgChartLoaded = true;
+    try {
+      const res = await apiFetch(`${API}/dashboard/org-chart`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      orgChartData = result.clusters;
+
+      document.getElementById('orgRootName').textContent = userName || 'Management';
+      document.getElementById('orgRootAvatarFallback').textContent = initials(userName);
+
+      document.getElementById('orgClusterRow').innerHTML = orgChartData.length ? orgChartData.map((ch, i) => {
+        const c = ORG_PALETTE[i % ORG_PALETTE.length];
+        return `
+        <div class="org-child flex flex-col items-center">
+          <!-- Colored header pill (the "department" label) with an overlapping circular avatar -->
+          <div class="flex flex-col items-center relative">
+            <div class="org-avatar-overlap w-11 h-11 rounded-full ${c.pill} ring-4 ring-white text-white font-display font-bold flex items-center justify-center text-sm shadow-card">${initials(ch.name)}</div>
+            <button onclick="jumpToClusterLeads(${ch.id})" class="${c.pill} text-white rounded-2xl pt-7 pb-3 px-4 shadow-card hover:brightness-105 transition text-center w-40">
+              <p class="text-sm font-semibold truncate">${orgEscape(ch.name)}</p>
+              <p class="text-[10px] text-white/75 uppercase tracking-wide truncate">${orgEscape(ch.designation || 'Cluster Head')}</p>
+              <div class="flex justify-center gap-1.5 mt-2">
+                <span class="text-[10px] font-semibold bg-white/20 px-1.5 py-0.5 rounded">${ch.total_leads} leads</span>
+                <span class="text-[10px] font-semibold bg-white/20 px-1.5 py-0.5 rounded">${ch.conversion_rate}%</span>
+              </div>
+            </button>
+          </div>
+
+          <!-- Reps: same color family, connected by a short vertical line per card -->
+          <div class="flex flex-col items-center mt-1">
+            ${(ch.reps || []).map(rep => `
+              <div class="w-px h-4 ${c.repBorder.replace('border-', 'bg-')}"></div>
+              <button onclick="jumpToRepLeads(${rep.id})" class="${c.repBg} border ${c.repBorder} rounded-xl px-3 py-2 shadow-sm hover:brightness-95 transition text-center w-36 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-full ${c.pill} text-white font-display font-semibold flex items-center justify-center text-[11px] shrink-0">${initials(rep.name)}</span>
+                <span class="min-w-0 text-left">
+                  <span class="block text-xs font-semibold ${c.repText} truncate">${orgEscape(rep.name)}</span>
+                  <span class="block text-[10px] ${c.repSub}">${rep.total_leads} leads</span>
+                </span>
+              </button>`).join('') || `<p class="text-[10px] text-slate-400 mt-2">No reps yet</p>`}
+          </div>
+        </div>`;
+      }).join('') : '<p class="text-sm text-slate-400 px-4">No Cluster Heads found.</p>';
+    } catch (err) {
+      showToast(err.message || 'Could not load organogram', 'error');
+    }
+  }
+
+  function jumpToClusterLeads(clusterHeadId) {
+    switchTab('allleads');
+    if (!allLeadsFiltersLoaded) { loadAllLeadsFilters(); }
+    setTimeout(() => {
+      document.getElementById('filterClusterHead').value = clusterHeadId;
+      populateRepFilter(clusterHeadId);
+      loadAllLeads();
+    }, allLeadsFiltersLoaded ? 0 : 400);
+  }
+
+  function jumpToRepLeads(repId) {
+    switchTab('allleads');
+    const afterFiltersReady = () => {
+      document.getElementById('filterRep').value = repId;
+      loadAllLeads();
+    };
+    if (!allLeadsFiltersLoaded) { loadAllLeadsFilters(); setTimeout(afterFiltersReady, 400); }
+    else afterFiltersReady();
+  }
+
+  // ---------- Cluster Reports ----------
+  let clusterReportFiltersLoaded = false;
+
+  async function loadClusterReportFilters() {
+    clusterReportFiltersLoaded = true;
+    try {
+      const res = await apiFetch(`${API}/users/cluster-heads`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      const select = document.getElementById('reportClusterSelect');
+      select.innerHTML = '<option value="">— Select a Cluster Head —</option>' +
+        result.data.map(ch => `<option value="${ch.id}">${ch.name}</option>`).join('');
+    } catch (err) {
+      showToast(err.message || 'Could not load Cluster Heads', 'error');
+    }
+  }
+
+  async function loadClusterReport() {
+    const clusterHeadId = document.getElementById('reportClusterSelect').value;
+    if (!clusterHeadId) {
+      document.getElementById('clusterReportEmpty').classList.remove('hidden');
+      document.getElementById('clusterReportContent').classList.add('hidden');
+      return;
+    }
+    try {
+      const [statsRes, breakdownRes] = await Promise.all([
+        apiFetch(`${API}/dashboard/stats?cluster_head_id=${clusterHeadId}`),
+        apiFetch(`${API}/dashboard/team-breakdown?cluster_head_id=${clusterHeadId}`)
+      ]);
+      const stats = await statsRes.json();
+      const breakdown = await breakdownRes.json();
+      if (!statsRes.ok) throw new Error(stats.message);
+      if (!breakdownRes.ok) throw new Error(breakdown.message);
+
+      document.getElementById('clusterReportEmpty').classList.add('hidden');
+      document.getElementById('clusterReportContent').classList.remove('hidden');
+
+      const kpi = stats.kpi || {};
+      document.getElementById('crTotal').textContent = kpi.total_leads ?? 0;
+      document.getElementById('crConverted').textContent = kpi.converted ?? 0;
+      document.getElementById('crLost').textContent = kpi.lost ?? 0;
+      document.getElementById('crConvRate').textContent = (parseFloat(kpi.conversion_rate) || 0).toFixed(1) + '%';
+
+      const stageColors = { Lead: '#4F46E5', Prospect: '#C9A15A', Priority: '#D97706' };
+      document.getElementById('crRepCards').innerHTML = (breakdown.team || []).length ? breakdown.team.map(rep => {
+        const stageTotal = (rep.by_stage || []).reduce((s, r) => s + Number(r.count), 0) || 1;
+        const stageBars = (rep.by_stage || []).map(s => {
+          const pct = (Number(s.count) / stageTotal * 100).toFixed(0);
+          return `<div class="flex items-center gap-2 text-xs">
+            <span class="w-14 text-slate-500">${s.stage}</span>
+            <div class="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full" style="width:${pct}%; background:${stageColors[s.stage] || '#94A3B8'};"></div></div>
+            <span class="w-8 text-right text-slate-400">${s.count}</span>
+          </div>`;
+        }).join('');
+        return `<div class="bg-white rounded-2xl shadow-card border border-hair p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-slate-100 text-ink font-display font-semibold flex items-center justify-center text-sm">${initials(rep.name)}</div>
+              <div><p class="font-display text-base font-semibold text-ink">${rep.name}</p><p class="text-xs text-slate-400">${rep.designation || 'Sales Man'}</p></div>
+            </div>
+            <button onclick="jumpToRepLeads(${rep.id})" class="text-xs font-semibold text-indigo-600 hover:underline">View leads →</button>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center mb-4">
+            <div><p class="text-lg font-semibold text-ink">${rep.total_leads}</p><p class="text-[10px] uppercase tracking-wide text-slate-400">Total</p></div>
+            <div><p class="text-lg font-semibold text-brand-emerald">${rep.converted}</p><p class="text-[10px] uppercase tracking-wide text-slate-400">Won</p></div>
+            <div><p class="text-lg font-semibold text-brand-rose">${rep.lost}</p><p class="text-[10px] uppercase tracking-wide text-slate-400">Lost</p></div>
+          </div>
+          <div class="space-y-1.5">${stageBars || '<p class="text-xs text-slate-400">No leads yet.</p>'}</div>
+        </div>`;
+      }).join('') : '<p class="text-sm text-slate-400">No sales reps under this Cluster Head yet.</p>';
+    } catch (err) {
+      showToast(err.message || 'Could not load cluster report', 'error');
+    }
+  }
+
+  // ---------- My Profile ----------
+  function renderAvatar(profile) {
+    const url = fileUrl(profile.profile_picture);
+    const sideImg = document.getElementById('sidebarAvatar'), sideFallback = document.getElementById('sidebarAvatarFallback');
+    const bigImg = document.getElementById('profileAvatarImg'), bigFallback = document.getElementById('profileAvatarFallback');
+    if (url) {
+      sideImg.src = url; sideImg.classList.remove('hidden'); sideFallback.classList.add('hidden');
+      bigImg.src = url; bigImg.classList.remove('hidden'); bigFallback.classList.add('hidden');
+    } else {
+      sideImg.classList.add('hidden'); sideFallback.classList.remove('hidden');
+      bigImg.classList.add('hidden'); bigFallback.classList.remove('hidden');
+      sideFallback.textContent = initials(profile.name);
+      bigFallback.textContent = initials(profile.name);
+    }
+  }
+
+  async function loadMyProfile() {
+    try {
+      const res = await apiFetch(`${API}/users/me`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      const p = result.data;
+
+      document.getElementById('sidebarUserName').textContent = p.name;
+      document.getElementById('sidebarUserRole').textContent = p.designation || 'Management (DD / ED)';
+      document.getElementById('profileDisplayName').textContent = p.name;
+      document.getElementById('profileDisplayDesignation').textContent = p.designation || 'No designation set';
+      document.getElementById('p_name').value = p.name || '';
+      document.getElementById('p_designation').value = p.designation || '';
+      document.getElementById('p_phone').value = p.phone || '';
+      document.getElementById('p_email_display').value = p.email || '';
+      renderAvatar(p);
+    } catch (err) {
+      showToast(err.message || 'Could not load your profile', 'error');
+    }
+  }
+
+  async function uploadAvatar(file) {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('profile_picture', file);
+    try {
+      const res = await apiFetch(`${API}/users/me/profile-picture`, { method: 'POST',  body: formData });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showToast('Profile picture updated');
+      loadMyProfile();
+    } catch (err) { showToast(err.message || 'Could not upload photo', 'error'); }
+  }
+
+  document.getElementById('profileForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      name: document.getElementById('p_name').value.trim(),
+      designation: document.getElementById('p_designation').value.trim() || null,
+      phone: document.getElementById('p_phone').value.trim() || null
+    };
+    try {
+      const res = await apiFetch(`${API}/users/me`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify(payload) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showToast('Profile updated successfully!');
+      loadMyProfile();
+    } catch (err) { showToast(err.message, 'error'); }
+  });
+
+  document.getElementById('emailForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = { new_email: document.getElementById('em_new_email').value.trim(), current_password: document.getElementById('em_current_password').value };
+    try {
+      const res = await apiFetch(`${API}/users/me/email`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify(payload) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showToast('Email updated successfully!');
+      document.getElementById('emailForm').reset();
+      loadMyProfile();
+    } catch (err) { showToast(err.message, 'error'); }
+  });
+
+  document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newPw = document.getElementById('pw_new').value;
+    const confirmPw = document.getElementById('pw_confirm').value;
+    if (newPw !== confirmPw) { showToast('New password and confirmation do not match.', 'error'); return; }
+    const payload = { oldPassword: document.getElementById('pw_old').value, newPassword: newPw };
+    try {
+      const res = await apiFetch(`${API}/auth/reset-password`, { method: 'POST', headers: authHeadersJSON, body: JSON.stringify(payload) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showToast('Password updated successfully!');
+      document.getElementById('passwordForm').reset();
+    } catch (err) { showToast(err.message, 'error'); }
+  });
+
+  loadMyProfile();
+  loadUnassignedLeads();
+</script>
+</body>
+</html>

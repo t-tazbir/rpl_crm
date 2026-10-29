@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Cluster Head Portal — Rangs Properties Ltd</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { display: ['Fraunces', 'ui-serif', 'serif'], sans: ['Inter', 'ui-sans-serif', 'sans-serif'] },
+        colors: {
+          ink: '#0B1220', ink2: '#16213A', paper: '#F6F7F9', hair: '#E6E8EC',
+          gold: '#C9A15A', goldsoft: '#EADFC5',
+          brand: { emerald: '#16A34A', rose: '#E11D48', amber: '#D97706', indigo: '#4F46E5' }
+        },
+        boxShadow: { card: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.10)' }
+      }
+    }
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="js/toast.js"></script>
+
+<style>
+  html, body { background: #F6F7F9; }
+  body { font-family: 'Inter', ui-sans-serif, sans-serif; }
+  .font-display { font-family: 'Fraunces', ui-serif, serif; font-variation-settings: 'opsz' 40; }
+  .chart-box { position: relative; width: 100%; }
+  #sidenav { transition: transform 300ms ease; }
+  .tab-panel { animation: fadeUp 280ms ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid #C9A15A; outline-offset: 2px; border-radius: 6px;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #D8DCE3; border-radius: 8px; }
+  .nav-item[data-active="true"] { background: #16213A; color: #fff; }
+  .nav-item[data-active="true"] .nav-dot { background: #C9A15A; }
+  details > summary { cursor: pointer; list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+
+  /* UI fix: fancy open/close animation for modals instead of an instant hidden<->flex toggle. */
+  .modal-backdrop { transition: opacity 220ms ease; }
+  .modal-panel { transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease; }
+  .modal-backdrop.modal-enter { opacity: 0; }
+  .modal-backdrop.modal-enter .modal-panel { opacity: 0; transform: scale(0.95) translateY(10px); }
+
+  /* UI fix: skeleton placeholder shimmer used while a section's data is loading. */
+  @keyframes skeleton-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+  .skeleton-block {
+    background: linear-gradient(90deg, #E9EBEF 25%, #F3F4F6 37%, #E9EBEF 63%);
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.4s ease infinite;
+    border-radius: 0.375rem;
+  }
+  .org-children { position: relative; padding-top: 2rem; }
+  .org-children::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: #D8DCE3; }
+  .org-child { position: relative; }
+  .org-child::before { content: ''; position: absolute; top: -2rem; left: 50%; width: 1px; height: 2rem; background: #D8DCE3; }
+</style>
+</head>
+<body class="bg-paper text-[#1B2130] min-h-screen">
+
+<div id="overlay" class="fixed inset-0 bg-slate-900/50 z-30 hidden" onclick="closeSidenav()"></div>
+
+<div class="md:flex md:h-screen">
+
+  <!-- SIDENAV -->
+  <!-- UI fix: md:h-screen + md:overflow-y-auto makes the sidebar its own fixed-height,
+       independently-scrolling panel instead of stretching with main content. -->
+  <aside id="sidenav" class="fixed inset-y-0 left-0 z-40 w-72 -translate-x-full bg-ink text-white flex flex-col justify-between md:static md:translate-x-0 md:w-64 md:shrink-0 md:h-screen md:overflow-y-auto">
+    <div>
+      <div class="px-6 py-6 border-b border-white/10 flex items-center justify-between">
+        <div>
+          <p class="text-[11px] uppercase tracking-[0.18em] text-gold font-semibold">Rangs Properties Ltd</p>
+          <h1 class="font-display text-xl font-semibold mt-1 leading-tight">Cluster<br>Portal</h1>
+        </div>
+        <button onclick="closeSidenav()" class="md:hidden text-white/60 hover:text-white p-1" aria-label="Close menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <nav class="p-4 space-y-1" id="navList">
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="overview" onclick="switchTab('overview')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          <span class="text-sm font-medium">Overview</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="team" onclick="switchTab('team')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="5" r="2.5"/><path d="M12 7.5v4M12 11.5H5v3M12 11.5h7v3M5 14.5v3M19 14.5v3"/></svg>
+          <span class="text-sm font-medium">My Team</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="structure" onclick="switchTab('structure')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/><path d="M12 9v3M6 15v-3h12v3"/></svg>
+          <span class="text-sm font-medium">Team Structure</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="analysis" onclick="switchTab('analysis')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 3 5-7"/></svg>
+          <span class="text-sm font-medium">Team Analysis</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="leads" onclick="switchTab('leads')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          <span class="text-sm font-medium">Team Leads</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="lost" onclick="switchTab('lost')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
+          <span class="text-sm font-medium">Lost Analysis</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="projects" onclick="switchTab('projects')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-8h6v8"/></svg>
+          <span class="text-sm font-medium">Projects</span>
+        </button>
+        <button class="nav-item w-full flex items-center gap-3 text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition" data-tab="profile" onclick="switchTab('profile')">
+          <span class="nav-dot w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <span class="text-sm font-medium">My Profile</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="p-4 border-t border-white/10">
+      <button onclick="switchTab('profile')" class="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 transition text-left mb-2">
+        <img id="sidebarAvatar" src="" class="w-9 h-9 rounded-full object-cover border border-white/10 hidden">
+        <div id="sidebarAvatarFallback" class="w-9 h-9 rounded-full bg-gold text-ink font-display font-semibold flex items-center justify-center text-sm shrink-0"></div>
+        <div class="min-w-0">
+          <p id="sidebarUserName" class="text-sm font-medium text-white truncate"></p>
+          <p id="sidebarUserRole" class="text-xs text-slate-400 truncate">Cluster Head</p>
+        </div>
+      </button>
+      <button onclick="logout()" class="w-full bg-white/5 hover:bg-brand-rose/90 hover:text-white text-slate-300 py-2 rounded-lg text-sm font-medium transition">Logout</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <!-- UI fix: independent scroll container, matching the sidebar fix above. -->
+  <main class="flex-1 min-w-0 md:h-screen md:overflow-y-auto">
+    <header class="md:hidden sticky top-0 z-20 bg-white border-b border-hair px-4 py-3 flex items-center justify-between">
+      <button onclick="openSidenav()" class="p-1.5 -ml-1.5 text-ink" aria-label="Open menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <p class="font-display text-sm font-semibold text-ink">Rangs — Cluster Portal</p>
+      <div class="w-7"></div>
+    </header>
+
+    <div class="px-4 sm:px-6 lg:px-10 py-6 lg:py-8 max-w-6xl mx-auto space-y-6">
+
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p class="text-xs uppercase tracking-[0.14em] text-slate-400 font-semibold" id="pageEyebrow">Overview</p>
+          <h2 class="font-display text-2xl sm:text-3xl font-semibold text-ink mt-1" id="pageTitle">Cluster Overview</h2>
+          <p class="text-sm text-slate-500 mt-1" id="pageSubtitle">Your team's pipeline, at a glance</p>
+        </div>
+      </div>
+
+      <!-- ===== OVERVIEW ===== -->
+      <section id="tab-overview" class="tab-panel space-y-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Total</p><p class="font-display text-3xl font-semibold text-ink mt-2" id="kpiTotal">—</p></div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Prospects</p><p class="font-display text-3xl font-semibold text-ink mt-2" id="kpiProspects">—</p></div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Priority</p><p class="font-display text-3xl font-semibold text-ink mt-2" id="kpiPriority">—</p></div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Converted</p><p class="font-display text-3xl font-semibold text-brand-emerald mt-2" id="kpiConverted">—</p></div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Lost</p><p class="font-display text-3xl font-semibold text-brand-rose mt-2" id="kpiLost">—</p></div>
+          <div class="bg-white rounded-xl shadow-card border border-hair p-4"><p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Conv. Rate</p><p class="font-display text-3xl font-semibold text-ink mt-2" id="kpiConvRate">—</p></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+          <div class="lg:col-span-2 bg-ink rounded-2xl shadow-card p-6 flex flex-col items-center text-center">
+            <p class="text-[11px] uppercase tracking-[0.16em] text-gold font-semibold">Lost Ratio</p>
+            <p class="font-display text-5xl font-semibold text-white mt-3" id="lostRatioValue">—</p>
+            <p class="text-sm text-slate-400 mt-2" id="lostRatioCaption">— of — leads lost</p>
+          </div>
+          <div class="lg:col-span-3 bg-white rounded-2xl shadow-card border border-hair p-6">
+            <h3 class="font-display text-base font-semibold text-ink mb-3">Pipeline by Stage</h3>
+            <div id="stageBars" class="space-y-3"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+            <h3 class="font-display text-base font-semibold text-ink mb-3">Leads by Source</h3>
+            <div class="chart-box h-56"><canvas id="sourceChart"></canvas></div>
+          </div>
+          <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+            <h3 class="font-display text-base font-semibold text-ink mb-3">Leads by Category</h3>
+            <div class="chart-box h-56"><canvas id="categoryChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== MY TEAM (ORGANOGRAM) ===== -->
+      <section id="tab-team" class="tab-panel hidden">
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6 sm:p-10 overflow-x-auto">
+          <p class="text-sm text-slate-500 mb-10 text-center">Tap a team member to jump to their leads.</p>
+          <div class="flex flex-col items-center min-w-max">
+            <!-- Root: circular avatar overlapping a dark pill, matching the reference org-chart style -->
+            <div class="flex flex-col items-center relative z-10">
+              <div id="orgHeadAvatarFallback" class="w-16 h-16 rounded-full ring-4 ring-gold bg-ink text-gold font-display font-bold flex items-center justify-center text-lg shadow-card"></div>
+              <div class="-mt-4 bg-ink text-white rounded-2xl pt-6 pb-3 px-6 shadow-card text-center min-w-[10rem]">
+                <p class="text-sm font-semibold" id="orgHeadName">—</p>
+                <p class="text-[11px] text-slate-400 uppercase tracking-wide mt-0.5">Cluster Head</p>
+              </div>
+            </div>
+            <div class="w-px h-8 bg-hair"></div>
+            <div class="org-children flex gap-10 flex-wrap justify-center" id="orgChildren"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== TEAM STRUCTURE (promote/demote/assign Team Leads) ===== -->
+      <section id="tab-structure" class="tab-panel hidden space-y-6">
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-5">
+          <p class="text-sm text-slate-500">Promote a Sales Man to <b>Team Lead</b>, then decide which of your Sales Men report to them. Anyone not assigned to a Team Lead reports directly to you.</p>
+        </div>
+
+        <!-- Unassigned pool: sales men reporting directly to the Cluster Head -->
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-display text-base font-semibold text-ink">Reporting Directly to You</h3>
+            <span class="text-xs text-slate-400" id="unassignedCount"></span>
+          </div>
+          <div id="unassignedList" class="space-y-2"></div>
+        </div>
+
+        <!-- One card per Team Lead, with their reports and a way to add more -->
+        <div id="teamLeadCards" class="space-y-4"></div>
+      </section>
+
+      <!-- ===== TEAM ANALYSIS ===== -->
+      <section id="tab-analysis" class="tab-panel hidden">
+        <p class="text-sm text-slate-500 mb-4">Individual performance for every sales rep on your team.</p>
+        <div id="analysisCards" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </section>
+
+      <!-- ===== TEAM LEADS ===== -->
+      <section id="tab-leads" class="tab-panel hidden space-y-4">
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-4 flex flex-wrap gap-3 items-center">
+          <input id="filterSearch" type="text" placeholder="Search name, phone, or lead ID..." class="flex-1 min-w-[180px] px-3 py-2 border border-hair rounded-lg text-sm">
+          <select id="filterRep" class="px-3 py-2 border border-hair rounded-lg text-sm"><option value="">All Team Members</option></select>
+          <select id="filterStage" class="px-3 py-2 border border-hair rounded-lg text-sm">
+            <option value="">All Stages</option><option value="Lead">Lead</option><option value="Prospect">Prospect</option><option value="Priority">Priority</option>
+          </select>
+          <select id="filterStatus" class="px-3 py-2 border border-hair rounded-lg text-sm">
+            <option value="">All Statuses</option><option value="Active">Active</option><option value="Converted">Converted</option><option value="Lost">Lost</option><option value="On Hold">On Hold</option>
+          </select>
+          <button onclick="loadTeamLeads()" class="px-4 py-2 bg-ink text-white rounded-lg text-sm font-semibold hover:bg-ink2 transition">Filter</button>
+        </div>
+        <div id="leadsList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </section>
+
+      <!-- ===== LOST ANALYSIS ===== -->
+      <section id="tab-lost" class="tab-panel hidden space-y-4 sm:space-y-6">
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6 sm:p-8">
+          <h3 class="font-display text-lg font-semibold text-ink">Reasons Leads Are Lost</h3>
+          <p class="text-sm text-slate-500 mt-1">Across your whole team.</p>
+          <div class="chart-box h-72 sm:h-80 mt-4"><canvas id="lostChart"></canvas></div>
+        </div>
+      </section>
+
+      <!-- ===== PROJECTS ===== -->
+      <section id="tab-projects" class="tab-panel hidden">
+        <h3 class="font-display text-lg font-semibold text-ink mb-4">Project-wise Performance</h3>
+        <div id="projectCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </section>
+
+      <!-- ===== MY PROFILE ===== -->
+      <section id="tab-profile" class="tab-panel hidden space-y-6">
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6 flex items-center gap-5">
+          <div class="relative shrink-0">
+            <img id="profileAvatarImg" src="" class="w-20 h-20 rounded-full object-cover border border-hair hidden">
+            <div id="profileAvatarFallback" class="w-20 h-20 rounded-full bg-gold text-ink font-display text-2xl font-semibold flex items-center justify-center"></div>
+            <button type="button" onclick="document.getElementById('avatarFileInput').click()" class="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-ink text-white flex items-center justify-center border-2 border-white hover:bg-ink2 transition" aria-label="Change photo">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
+            </button>
+            <input type="file" id="avatarFileInput" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="uploadAvatar(this.files[0])">
+          </div>
+          <div class="min-w-0">
+            <p class="font-display text-xl font-semibold text-ink" id="profileDisplayName">—</p>
+            <p class="text-sm text-slate-500" id="profileDisplayDesignation">—</p>
+            <span class="inline-block mt-1 text-[11px] font-semibold uppercase tracking-wide bg-slate-100 text-slate-500 px-2 py-0.5 rounded">Cluster Head</span>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+          <h3 class="font-display text-base font-semibold text-ink mb-4">Profile Details</h3>
+          <form id="profileForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div><label class="block font-medium text-slate-700 mb-1">Full Name *</label><input id="p_name" required class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div><label class="block font-medium text-slate-700 mb-1">Designation</label><input id="p_designation" placeholder="e.g. Cluster Head — North Zone" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div><label class="block font-medium text-slate-700 mb-1">Phone Number</label><input id="p_phone" placeholder="017xxxxxxxx" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Email</label>
+              <input id="p_email_display" disabled class="w-full px-3 py-2 border border-hair rounded-lg bg-slate-50 text-slate-400">
+              <p class="text-xs text-slate-400 mt-1">Change email below — it needs your password to confirm.</p>
+            </div>
+            <div class="md:col-span-2 flex justify-end"><button type="submit" class="px-4 py-2 bg-ink text-white rounded-lg text-sm font-semibold hover:bg-ink2">Save Changes</button></div>
+          </form>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+          <h3 class="font-display text-base font-semibold text-ink mb-1">Change Email</h3>
+          <p class="text-xs text-slate-400 mb-4">Requires your current password to confirm it's really you.</p>
+          <form id="emailForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div><label class="block font-medium text-slate-700 mb-1">New Email *</label><input type="email" id="em_new_email" required class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div><label class="block font-medium text-slate-700 mb-1">Current Password *</label><input type="password" id="em_current_password" required class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div class="md:col-span-2 flex justify-end"><button type="submit" class="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800">Update Email</button></div>
+          </form>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-card border border-hair p-6">
+          <h3 class="font-display text-base font-semibold text-ink mb-4">Change Password</h3>
+          <form id="passwordForm" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div><label class="block font-medium text-slate-700 mb-1">Current Password *</label><input type="password" id="pw_old" required class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div><label class="block font-medium text-slate-700 mb-1">New Password *</label><input type="password" id="pw_new" required minlength="6" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div><label class="block font-medium text-slate-700 mb-1">Confirm New Password *</label><input type="password" id="pw_confirm" required minlength="6" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div class="md:col-span-3 flex justify-end"><button type="submit" class="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800">Update Password</button></div>
+          </form>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- ===== EDIT LEAD MODAL ===== -->
+<div id="editModal" class="modal-backdrop fixed inset-0 bg-ink/60 hidden items-center justify-center p-4 z-50">
+  <div class="modal-panel bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+    <div class="flex justify-between items-center px-6 py-4 border-b border-hair shrink-0">
+      <h3 class="font-display text-lg font-semibold text-ink">Update Lead</h3>
+      <button onclick="closeModal('editModal')" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+    </div>
+
+    <div class="overflow-y-auto flex-1 px-6 py-4">
+      <div class="mb-4 bg-slate-50 rounded-xl p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Phone Numbers (max 4 · one primary)</p>
+        <div id="editPhonesList" class="space-y-2 mb-3"></div>
+        <div class="flex gap-2">
+          <input id="newPhoneInput" placeholder="Add another number..." class="flex-1 px-3 py-2 border border-hair rounded-lg text-sm">
+          <button type="button" onclick="addPhoneToEditingLead()" class="px-3 py-2 bg-ink text-white rounded-lg text-sm font-semibold">Add</button>
+        </div>
+      </div>
+
+      <form id="editForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <input type="hidden" id="e_id">
+        <div><label class="block font-medium text-slate-700 mb-1">Lead Name *</label><input id="e_lead_name" required class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Project</label><input id="e_project" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Stage</label><select id="e_stage" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="Lead">Lead</option><option value="Prospect">Prospect</option><option value="Priority">Priority</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Status</label><select id="e_status" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="Active">Active</option><option value="Converted">Converted</option><option value="Lost">Lost</option><option value="On Hold">On Hold</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Client Meeting</label><select id="e_client_meeting" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Site Visit</label><select id="e_site_visit" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Meeting at HQ</label><select id="e_meeting_at_hq" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Next Follow-up (date &amp; time)</label><input type="datetime-local" id="e_next_follow_up" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+        <div class="md:col-span-2"><label class="block font-medium text-slate-700 mb-1">Unmet Demand Reason (if Lost)</label>
+          <select id="e_unmet_demand_reason" class="w-full px-3 py-2 border border-hair rounded-lg">
+            <option value="">-- None --</option>
+            <option>Budget / Price too high</option><option>Location mismatch</option><option>Size / Layout mismatch</option>
+            <option>Payment plan not suitable</option><option>Possession timeline too long</option><option>Legal / Documentation concern</option>
+            <option>Lost to competitor</option><option>Amenities not sufficient</option><option>Financing / Loan issue</option>
+            <option>Not ready to buy yet</option><option>Other</option>
+          </select>
+        </div>
+        <div class="md:col-span-2"><label class="block font-medium text-slate-700 mb-1">Note</label><textarea id="e_note" rows="2" class="w-full px-3 py-2 border border-hair rounded-lg"></textarea></div>
+
+        <details class="md:col-span-2 border border-hair rounded-lg px-3 py-2">
+          <summary class="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">Additional Info <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <div class="mt-3 space-y-3">
+            <div><label class="block font-medium text-slate-700 mb-1">Spouse Name</label><input id="e_spouse_name" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+            <div>
+              <label class="block font-medium text-slate-700 mb-1">Spouse Phone Numbers (max 2)</label>
+              <div id="editSpousePhonesList" class="space-y-2 mb-2"></div>
+              <div class="flex gap-2">
+                <input id="newSpousePhoneInput" placeholder="Add spouse number..." class="flex-1 px-3 py-2 border border-hair rounded-lg text-sm">
+                <button type="button" onclick="addSpousePhoneToEditingLead()" class="px-3 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold">Add</button>
+              </div>
+            </div>
+          </div>
+        </details>
+      </form>
+    </div>
+
+    <div class="flex justify-between items-center gap-2 px-6 py-4 border-t border-hair shrink-0">
+      <button type="button" onclick="openTransferModal()" class="text-sm font-semibold text-indigo-600 hover:underline">Transfer to another rep →</button>
+      <div class="flex gap-2">
+        <button type="button" onclick="closeModal('editModal')" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Cancel</button>
+        <button type="submit" form="editForm" class="px-4 py-2 bg-ink text-white rounded-lg text-sm font-semibold hover:bg-ink2">Update Lead</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== NURSING JOURNEY MODAL (view-only) ===== -->
+<div id="journeyModal" class="modal-backdrop fixed inset-0 bg-ink/60 hidden items-center justify-center p-4 z-50">
+  <div class="modal-panel bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+    <div class="bg-ink px-6 py-5 flex justify-between items-start shrink-0">
+      <div>
+        <p class="text-[11px] uppercase tracking-[0.14em] text-gold font-semibold">Nursing Journey</p>
+        <p class="font-display text-lg font-semibold text-white mt-0.5" id="journeyLeadName">—</p>
+        <p class="text-xs text-slate-400 mt-0.5" id="journeyLeadMeta"></p>
+      </div>
+      <button onclick="closeModal('journeyModal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+    </div>
+    <div class="p-6 flex-1 min-h-0 overflow-y-auto">
+      <div id="activityTimeline" class="space-y-4 pr-1"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TRANSFER MODAL ===== -->
+<div id="transferModal" class="modal-backdrop fixed inset-0 bg-ink/60 hidden items-center justify-center p-4 z-50">
+  <div class="modal-panel bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+    <h3 class="font-display text-lg font-semibold text-ink mb-1">Transfer Lead Ownership</h3>
+    <p class="text-xs text-slate-500 mb-4">Select a team member to reassign this lead to.</p>
+    <select id="transferRepSelect" class="w-full p-2 border border-hair rounded-lg text-sm mb-4"></select>
+    <div class="flex justify-end gap-2">
+      <button onclick="closeModal('transferModal')" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Cancel</button>
+      <button onclick="submitTransfer()" class="px-4 py-2 bg-ink text-white rounded-lg text-sm font-semibold hover:bg-ink2">Confirm Transfer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Bug #6 fix: JWT moved to an HttpOnly cookie set by authController.login — never
+  // present in localStorage or readable by JS. role/name kept for redirect/display only.
+  const role = localStorage.getItem('role');
+  const userName = localStorage.getItem('name');
+  // UX convenience only — real enforcement is server-side (authMiddleware + roleMiddleware).
+  if (role !== 'CLUSTER_HEAD') window.location.href = 'login.html';
+
+  function redirectToLogin() { localStorage.clear(); window.location.href = 'login.html'; }
+
+  async function logout() {
+    try { await apiFetch(`${API}/auth/logout`, { method: 'POST' }); }
+    catch (err) { /* best-effort */ }
+    redirectToLogin();
+  }
+
+  const API = 'http://localhost:5000/api';
+
+  async function apiFetch(url, options = {}) {
+    const res = await fetch(url, { ...options, credentials: 'include' });
+    if (res.status === 401) redirectToLogin();
+    return res;
+  }
+
+  const authHeadersJSON = { 'Content-Type': 'application/json' };
+
+  const sidenav = document.getElementById('sidenav');
+  const overlay = document.getElementById('overlay');
+  function openSidenav() { sidenav.classList.remove('-translate-x-full'); overlay.classList.remove('hidden'); }
+  function closeSidenav() { sidenav.classList.add('-translate-x-full'); overlay.classList.add('hidden'); }
+
+  // UI fix: modals now animate in/out instead of instantly appearing.
+  function openModal(id) {
+    const m = document.getElementById(id);
+    m.classList.add('modal-enter');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+    requestAnimationFrame(() => requestAnimationFrame(() => m.classList.remove('modal-enter')));
+  }
+  function closeModal(id) {
+    const m = document.getElementById(id);
+    m.classList.add('modal-enter');
+    setTimeout(() => {
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+      m.classList.remove('modal-enter');
+    }, 220);
+  }
+  function showAlert(message, isError = false) { showToast(message, isError ? 'error' : 'success'); }
+
+  const TAB_META = {
+    overview: { eyebrow: 'Overview', title: 'Cluster Overview', subtitle: "Your team's pipeline, at a glance" },
+    team:     { eyebrow: 'My Team',  title: 'My Team',          subtitle: 'Who reports to you' },
+    structure:{ eyebrow: 'Structure',title: 'Team Structure',   subtitle: 'Manage Team Leads and who reports to them' },
+    analysis: { eyebrow: 'Analysis', title: 'Team Analysis',    subtitle: 'Individual performance per rep' },
+    leads:    { eyebrow: 'Leads',    title: 'Team Leads',       subtitle: 'Search, edit, and transfer your team\u2019s leads' },
+    lost:     { eyebrow: 'Lost',     title: 'Lost Analysis',    subtitle: 'Why leads are slipping out of the pipeline' },
+    projects: { eyebrow: 'Projects', title: 'Project-wise Performance', subtitle: 'Conversion outcomes by project' },
+    profile:  { eyebrow: 'Profile',  title: 'My Profile',       subtitle: 'Photo, contact info, and security' },
+  };
+
+  function switchTab(tab) {
+    Object.keys(TAB_META).forEach(t => {
+      document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+      const btn = document.querySelector(`.nav-item[data-tab="${t}"]`);
+      btn.dataset.active = (t === tab) ? 'true' : 'false';
+      btn.classList.toggle('text-slate-300', t !== tab);
+    });
+    const meta = TAB_META[tab];
+    document.getElementById('pageEyebrow').textContent = meta.eyebrow;
+    document.getElementById('pageTitle').textContent = meta.title;
+    document.getElementById('pageSubtitle').textContent = meta.subtitle;
+    closeSidenav();
+
+    if (tab === 'lost') renderLostChart();
+    if (tab === 'overview') renderOverviewCharts();
+    if (tab === 'structure') loadStructure();
+  }
+
+  function initials(name) {
+    if (!name) return '?';
+    return name.trim().split(/\s+/).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  }
+  // Minimal local escape — this file doesn't have a shared escapeHtml() yet,
+  // but names rendered in the org chart are still user-supplied.
+  function orgEscape(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function fileUrl(p) { return p ? API.replace('/api', '') + p : null; }
+  function formatDateTime(v) {
+    if (!v) return 'Not set';
+    return new Date(v).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+  function toDatetimeLocalValue(v) { return v ? String(v).slice(0, 16) : ''; }
+  function toMySQLDatetime(v) { if (!v) return null; return v.length === 16 ? v.replace('T', ' ') + ':00' : v.replace('T', ' '); }
+
+  const STAGE_COLOR = { Lead: 'bg-indigo-100 text-indigo-700', Prospect: 'bg-amber-100 text-amber-700', Priority: 'bg-rose-100 text-rose-700' };
+  const STATUS_COLOR = { Active: 'bg-emerald-100 text-emerald-700', Converted: 'bg-emerald-600 text-white', Lost: 'bg-slate-200 text-slate-600', 'On Hold': 'bg-amber-100 text-amber-700' };
+
+  // UI fix: skeleton loader shown while the leads list is actually fetching.
+  function skeletonLeadCard() {
+    return `<div class="bg-white rounded-xl shadow-card border border-hair p-4 flex flex-col gap-2.5">
+      <div class="flex justify-between items-start gap-2">
+        <div class="skeleton-block h-4 w-28"></div>
+        <div class="flex gap-1.5"><div class="skeleton-block h-7 w-16 rounded-lg"></div><div class="skeleton-block h-7 w-12 rounded-lg"></div></div>
+      </div>
+      <div class="skeleton-block h-3 w-24"></div>
+      <div class="flex gap-1.5"><div class="skeleton-block h-4 w-14 rounded"></div><div class="skeleton-block h-4 w-14 rounded"></div></div>
+      <div class="skeleton-block h-3 w-32"></div>
+    </div>`;
+  }
+  function renderSkeleton(containerId, count, templateFn) {
+    const el = document.getElementById(containerId);
+    if (el) el.innerHTML = Array(count).fill(0).map(templateFn).join('');
+  }
+
+  function leadCard(lead) {
+    const stageCls = STAGE_COLOR[lead.stage] || 'bg-slate-100 text-slate-600';
+    const statusCls = STATUS_COLOR[lead.status] || 'bg-slate-100 text-slate-600';
+    return `
+      <div class="bg-white rounded-xl shadow-card border border-hair p-4 flex flex-col gap-2">
+        <div class="flex justify-between items-start gap-2">
+          <div class="min-w-0">
+            <p class="font-display text-base font-semibold text-ink truncate">${lead.lead_name}</p>
+            <p class="text-xs text-slate-400 font-mono">${lead.lead_id || ''}</p>
+            <p class="text-xs text-slate-500 mt-0.5">Rep: <b>${lead.sales_rep_name || '—'}</b></p>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick='openJourneyModal(${JSON.stringify(lead).replace(/'/g, "&#39;")})' title="Nursing Journey" class="text-xs font-semibold bg-goldsoft/60 hover:bg-goldsoft text-ink px-2.5 py-1.5 rounded-lg transition flex items-center gap-1">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+              Journey
+            </button>
+            <button onclick='openEditModal(${JSON.stringify(lead).replace(/'/g, "&#39;")})' class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-ink px-2.5 py-1.5 rounded-lg transition">Edit</button>
+          </div>
+        </div>
+        <p class="text-sm text-slate-600">${lead.lead_phone || ''}</p>
+        <div class="flex flex-wrap gap-1.5">
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded ${stageCls}">${lead.stage}</span>
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded ${statusCls}">${lead.status}</span>
+        </div>
+        <div class="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>
+          ${formatDateTime(lead.next_follow_up)}
+        </div>
+        ${lead.project ? `<p class="text-xs text-slate-400">${lead.project}</p>` : ''}
+      </div>`;
+  }
+
+  // ---------- Overview ----------
+  let overviewData = null;
+
+  async function loadOverview() {
+    try {
+      const res = await apiFetch(`${API}/dashboard/stats`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      overviewData = result;
+
+      const kpi = result.kpi || {};
+      document.getElementById('kpiTotal').textContent = kpi.total_leads ?? 0;
+      document.getElementById('kpiProspects').textContent = kpi.prospects ?? 0;
+      document.getElementById('kpiPriority').textContent = kpi.priority ?? 0;
+      document.getElementById('kpiConverted').textContent = kpi.converted ?? 0;
+      document.getElementById('kpiLost').textContent = kpi.lost ?? 0;
+      document.getElementById('kpiConvRate').textContent = (parseFloat(kpi.conversion_rate) || 0).toFixed(1) + '%';
+
+      const lostRate = parseFloat(kpi.lost_rate) || 0;
+      document.getElementById('lostRatioValue').textContent = lostRate.toFixed(1) + '%';
+      document.getElementById('lostRatioCaption').textContent = `${kpi.lost ?? 0} of ${kpi.total_leads ?? 0} leads lost`;
+
+      const stageColors = { Lead: '#4F46E5', Prospect: '#C9A15A', Priority: '#D97706' };
+      const stageTotal = (result.by_stage || []).reduce((s, r) => s + Number(r.count), 0) || 1;
+      document.getElementById('stageBars').innerHTML = (result.by_stage || []).map(s => {
+        const pct = (Number(s.count) / stageTotal * 100).toFixed(0);
+        return `<div>
+          <div class="flex justify-between text-xs mb-1"><span class="font-medium text-slate-600">${s.stage}</span><span class="text-slate-400">${s.count} · ${pct}%</span></div>
+          <div class="h-2 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full" style="width:${pct}%; background:${stageColors[s.stage] || '#94A3B8'};"></div></div>
+        </div>`;
+      }).join('') || '<p class="text-sm text-slate-400">No stage data yet.</p>';
+
+      document.getElementById('projectCards').innerHTML = (result.by_project || []).map(p => {
+        const rate = parseFloat(p.conversion_rate || 0).toFixed(1);
+        return `<div class="bg-white rounded-xl shadow-card border border-hair p-5">
+          <p class="font-display text-base font-semibold text-ink truncate">${p.project}</p>
+          <div class="grid grid-cols-3 gap-2 mt-4 text-center">
+            <div><p class="text-lg font-semibold text-ink">${p.total_leads}</p><p class="text-[10px] uppercase tracking-wide text-slate-400">Total</p></div>
+            <div><p class="text-lg font-semibold text-brand-emerald">${p.converted}</p><p class="text-[10px] uppercase tracking-wide text-slate-400">Won</p></div>
+            <div><p class="text-lg font-semibold text-brand-rose">${p.lost}</p><p class="text-[10px] uppercase tracking-wide text-slate-400">Lost</p></div>
+          </div>
+          <div class="mt-4"><div class="flex justify-between text-xs text-slate-400 mb-1"><span>Conversion Rate</span><span class="font-semibold text-ink">${rate}%</span></div>
+          <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full bg-gold" style="width:${rate}%"></div></div></div>
+        </div>`;
+      }).join('') || '<p class="text-sm text-slate-400 col-span-full">No project data yet.</p>';
+
+      if (!document.getElementById('tab-overview').classList.contains('hidden')) renderOverviewCharts();
+      if (!document.getElementById('tab-lost').classList.contains('hidden')) renderLostChart();
+    } catch (err) {
+      showAlert(err.message || 'Could not load overview data', true);
+    }
+  }
+
+  let sourceChartInst, categoryChartInst, lostChartInst;
+  function renderOverviewCharts() {
+    if (!overviewData) return;
+    if (sourceChartInst) sourceChartInst.destroy();
+    const sourceColors = ['#4F46E5', '#C9A15A', '#16A34A', '#D97706', '#E11D48', '#0EA5E9'];
+    sourceChartInst = new Chart(document.getElementById('sourceChart').getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: (overviewData.by_source || []).map(s => s.source), datasets: [{ data: (overviewData.by_source || []).map(s => s.count), backgroundColor: sourceColors, borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '62%' }
+    });
+
+    if (categoryChartInst) categoryChartInst.destroy();
+    categoryChartInst = new Chart(document.getElementById('categoryChart').getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: (overviewData.by_category || []).map(c => c.category || 'Unassigned'), datasets: [{ data: (overviewData.by_category || []).map(c => c.count), backgroundColor: ['#4F46E5', '#C9A15A', '#94A3B8'], borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '62%' }
+    });
+  }
+
+  function renderLostChart() {
+    if (!overviewData) return;
+    if (lostChartInst) lostChartInst.destroy();
+    const data = [...(overviewData.by_unmet_demand || [])].sort((a, b) => Number(b.count) - Number(a.count));
+    lostChartInst = new Chart(document.getElementById('lostChart').getContext('2d'), {
+      type: 'bar',
+      data: { labels: data.map(r => r.reason), datasets: [{ data: data.map(r => r.count), backgroundColor: '#E11D48', borderRadius: 6, maxBarThickness: 22 }] },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } }, y: { grid: { display: false } } } }
+    });
+  }
+
+  // ---------- My Team (organogram) + Team Analysis ----------
+  // FIX: previously sourced from /api/dashboard/team-breakdown, which only
+  // queries role = 'SALES_MAN' — so a promoted Team Lead (e.g. Maruf) vanished
+  // from the org chart, the Team Analysis cards, and both dropdowns entirely,
+  // even though their reports (e.g. Abrar) were still visible and correctly
+  // scoped. Rebuilt here on top of /api/users/my-cluster-members (which already
+  // knows about Team Leads and who reports to whom) plus a plain /api/leads
+  // call (a Cluster Head calling it with no filters gets their WHOLE cluster —
+  // see leadController.getLeads) — stats are computed client-side from that,
+  // so no backend change is needed to fix this.
+  let clusterRoster = null;      // { team_leads: [...], sales_men: [...] }
+  let clusterLeads = [];         // every lead in this cluster
+  let memberStatsById = {};      // id -> { total, converted, lost, by_stage: {} }
+
+  function computeMemberStats(memberId) {
+    const leads = clusterLeads.filter(l => l.sales_rep_id === memberId);
+    const by_stage = {};
+    leads.forEach(l => { by_stage[l.stage] = (by_stage[l.stage] || 0) + 1; });
+    const converted = leads.filter(l => l.status === 'Converted').length;
+    const lost = leads.filter(l => l.status === 'Lost').length;
+    const conversion_rate = leads.length ? ((converted / leads.length) * 100).toFixed(1) : '0.0';
+    return { total_leads: leads.length, converted, lost, conversion_rate, by_stage };
+  }
+
+  // Distinct accent color per Team Lead branch, cycling if there are more
+  // Team Leads than colors — keeps each branch visually easy to tell apart.
+  const TL_PALETTE = [
+    { pill: 'bg-indigo-500', bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', sub: 'text-indigo-400', line: 'bg-indigo-200' },
+    { pill: 'bg-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', sub: 'text-emerald-400', line: 'bg-emerald-200' },
+    { pill: 'bg-amber-500', bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', sub: 'text-amber-400', line: 'bg-amber-200' },
+    { pill: 'bg-rose-500', bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', sub: 'text-rose-400', line: 'bg-rose-200' },
+  ];
+  const DIRECT_COLOR = { pill: 'bg-slate-500', bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', sub: 'text-slate-400', line: 'bg-slate-300' };
+
+  function repCardHtml(rep, c) {
+    const stats = memberStatsById[rep.id] || { total_leads: 0, conversion_rate: '0.0' };
+    return `
+      <div class="w-px h-4 ${c.line}"></div>
+      <button onclick="jumpToRepLeads(${rep.id})" class="${c.bg} border ${c.border} rounded-xl px-4 py-2.5 shadow-sm hover:brightness-95 transition text-left w-52 flex items-center gap-3">
+        <span class="w-9 h-9 rounded-full ${c.pill} text-white font-display font-semibold flex items-center justify-center text-xs shrink-0">${initials(rep.name)}</span>
+        <span class="min-w-0 flex-1">
+          <span class="block text-sm font-semibold ${c.text} truncate">${orgEscape(rep.name)}</span>
+          <span class="block text-[11px] ${c.sub} truncate">${orgEscape(rep.designation || 'Sales Man')}</span>
+        </span>
+        <span class="flex flex-col items-end gap-0.5 shrink-0">
+          <span class="text-[10px] font-semibold ${c.bg} ${c.text} px-1.5 py-0.5 rounded border ${c.border}">${stats.total_leads} leads</span>
+          <span class="text-[10px] font-semibold text-emerald-500">${stats.conversion_rate}%</span>
+        </span>
+      </button>`;
+  }
+
+  async function loadTeamBreakdown() {
+    try {
+      const [rosterRes, leadsRes] = await Promise.all([
+        apiFetch(`${API}/users/my-cluster-members`),
+        apiFetch(`${API}/leads`)
+      ]);
+      const rosterResult = await rosterRes.json();
+      const leadsResult = await leadsRes.json();
+      if (!rosterRes.ok) throw new Error(rosterResult.message);
+      if (!leadsRes.ok) throw new Error(leadsResult.message);
+
+      clusterRoster = rosterResult;
+      clusterLeads = leadsResult.data || [];
+
+      const { team_leads, sales_men } = clusterRoster;
+      const directReports = sales_men.filter(s => !s.team_lead_id);
+
+      // Every member (Team Leads AND Sales Men) gets their stats computed once here.
+      memberStatsById = {};
+      [...team_leads, ...sales_men].forEach(m => { memberStatsById[m.id] = computeMemberStats(m.id); });
+
+      document.getElementById('orgHeadName').textContent = userName || 'You';
+      document.getElementById('orgHeadAvatarFallback').textContent = initials(userName);
+
+      // ---- Org chart: one branch per Team Lead (their reports nested below
+      // them), plus one "Direct Reports" branch for sales men with no Team Lead.
+      const branches = [];
+
+      team_leads.forEach((tl, i) => {
+        const c = TL_PALETTE[i % TL_PALETTE.length];
+        const reports = sales_men.filter(s => s.team_lead_id === tl.id);
+        const tlStats = memberStatsById[tl.id];
+        branches.push(`
+          <div class="org-child flex flex-col items-center">
+            <div class="org-avatar-overlap w-11 h-11 rounded-full ${c.pill} ring-4 ring-white text-white font-display font-bold flex items-center justify-center text-sm shadow-card"></div>
+            <button onclick="jumpToRepLeads(${tl.id})" class="${c.pill} text-white rounded-2xl pt-7 pb-3 px-4 shadow-card hover:brightness-105 transition text-center w-40 mb-1">
+              <p class="text-sm font-semibold truncate">${orgEscape(tl.name)}</p>
+              <p class="text-[10px] text-white/75 uppercase tracking-wide truncate">${orgEscape(tl.designation || 'Team Lead')}</p>
+              <div class="flex justify-center gap-1.5 mt-2">
+                <span class="text-[10px] font-semibold bg-white/20 px-1.5 py-0.5 rounded">${tlStats.total_leads} leads</span>
+                <span class="text-[10px] font-semibold bg-white/20 px-1.5 py-0.5 rounded">${tlStats.conversion_rate}%</span>
+              </div>
+            </button>
+            <div class="flex flex-col items-center">
+              ${reports.length ? reports.map(rep => repCardHtml(rep, c)).join('') : `<p class="text-[10px] text-slate-400 mt-2">No reports yet</p>`}
+            </div>
+          </div>`);
+      });
+
+      if (directReports.length) {
+        branches.push(`
+          <div class="org-child flex flex-col items-center">
+            <div class="org-avatar-overlap w-11 h-11 rounded-full ${DIRECT_COLOR.pill} ring-4 ring-white text-white font-display font-bold flex items-center justify-center text-[10px] shadow-card">DIR</div>
+            <div class="${DIRECT_COLOR.pill} text-white rounded-2xl pt-7 pb-2.5 px-4 shadow-card text-center w-40 mb-1">
+              <p class="text-xs font-semibold uppercase tracking-wide">Direct Reports</p>
+            </div>
+            <div class="flex flex-col items-center">
+              ${directReports.map(rep => repCardHtml(rep, DIRECT_COLOR)).join('')}
+            </div>
+          </div>`);
+      }
+
+      document.getElementById('orgChildren').innerHTML = branches.length ? branches.join('') : '<p class="text-sm text-slate-400 px-4">No sales reps assigned to you yet.</p>';
+
+      // ---- Team Analysis cards: one per member, Team Leads included ----
+      const stageColors = { Lead: '#4F46E5', Prospect: '#C9A15A', Priority: '#D97706' };
+      const allMembers = [...team_leads, ...sales_men];
+      document.getElementById('analysisCards').innerHTML = allMembers.length ? allMembers.map(rep => {
+        const stats = memberStatsById[rep.id];
+        const stageEntries = Object.entries(stats.by_stage);
+        const stageTotal = stageEntries.reduce((s, [, n]) => s + n, 0) || 1;
+        const stageBars = stageEntries.map(([stage, count]) => {
+          const pct = (count / stageTotal * 100).toFixed(0);
+          return `<div class="flex items-center gap-2 text-xs">
+            <span class="w-14 text-slate-500">${orgEscape(stage)}</span>
+            <div class="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full" style="width:${pct}%; background:${stageColors[stage] || '#94A3B8'};"></div></div>
+            <span class="w-8 text-right text-slate-400">${count}</span>
+          </div>`;
+        }).join('');
+        return `<div class="bg-white rounded-2xl shadow-card border border-hair p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-slate-100 text-ink font-display font-semibold flex items-center justify-center text-sm">${initials(rep.name)}</div>
+              <div><p class="font-display text-base font-semibold text-ink">${orgEscape(rep.name)}</p><p class="text-xs text-slate-400">${orgEscape(rep.designation || (rep.role === 'TEAM_LEAD' ? 'Team Lead' : 'Sales Man'))}</p></div>
+            </div>
+            <button onclick="jumpToRepLeads(${rep.id})" class="text-xs font-semibold text-indigo-600 hover:underline">View leads →</button>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center mb-4">
+            <div><p class="text-lg font-semibold text-ink">${stats.total_leads}</p><p class="text-[10px] uppercase tracking-wide text-slate-400">Total</p></div>
+            <div><p class="text-lg font-semibold text-brand-emerald">${stats.converted}</p><p class="text-[10px] uppercase tracking-wide text-slate-400">Won</p></div>
+            <div><p class="text-lg font-semibold text-brand-rose">${stats.lost}</p><p class="text-[10px] uppercase tracking-wide text-slate-400">Lost</p></div>
+          </div>
+          <div class="space-y-1.5">${stageBars || '<p class="text-xs text-slate-400">No leads yet.</p>'}</div>
+        </div>`;
+      }).join('') : '<p class="text-sm text-slate-400">No sales reps assigned to you yet.</p>';
+
+      // ---- Dropdowns: filter includes everyone (Team Leads + Sales Men) since
+      // both can own leads. Transfer target list stays Sales-Man-only, matching
+      // leadController.transferLead's backend restriction (it only accepts
+      // role = 'SALES_MAN' as a transfer target) — a Team Lead can be given
+      // leads via reassigning their reports, not via the transfer button.
+      const filterRep = document.getElementById('filterRep');
+      const transferSelect = document.getElementById('transferRepSelect');
+      const currentVal = filterRep.value;
+      filterRep.innerHTML = '<option value="">All Team Members</option>' + allMembers.map(r => `<option value="${r.id}">${orgEscape(r.name)}${r.role === 'TEAM_LEAD' ? ' (Team Lead)' : ''}</option>`).join('');
+      filterRep.value = currentVal;
+      transferSelect.innerHTML = sales_men.map(r => `<option value="${r.id}">${orgEscape(r.name)} (${orgEscape(r.email)})</option>`).join('');
+    } catch (err) {
+      showAlert(err.message || 'Could not load team data', true);
+    }
+  }
+
+  function jumpToRepLeads(repId) {
+    document.getElementById('filterRep').value = repId;
+    switchTab('leads');
+    loadTeamLeads();
+  }
+
+  // ---------- Team Structure (promote/demote Team Leads, assign reports) ----------
+  let structureData = null; // { team_leads: [...], sales_men: [...] }
+
+  async function loadStructure() {
+    try {
+      const res = await apiFetch(`${API}/users/my-cluster-members`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      structureData = result;
+      renderStructure();
+    } catch (err) {
+      showAlert(err.message || 'Could not load team structure', true);
+    }
+  }
+
+  function renderStructure() {
+    if (!structureData) return;
+    const { team_leads, sales_men } = structureData;
+
+    // "Reporting directly to you" = every Sales Man with no team_lead_id.
+    const unassigned = sales_men.filter(s => !s.team_lead_id);
+    document.getElementById('unassignedCount').textContent = `${unassigned.length} member${unassigned.length === 1 ? '' : 's'}`;
+    document.getElementById('unassignedList').innerHTML = unassigned.length ? unassigned.map(s => `
+      <div class="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2.5 gap-2">
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-display font-semibold flex items-center justify-center text-xs shrink-0">${initials(s.name)}</span>
+          <span class="min-w-0"><span class="block text-sm font-medium text-ink truncate">${orgEscape(s.name)}</span><span class="block text-xs text-slate-400 truncate">${orgEscape(s.email)}</span></span>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          ${team_leads.length ? `
+            <select onchange="if(this.value){assignToTeamLead(${s.id}, this.value); this.value='';}" class="text-xs border border-hair rounded-lg px-2 py-1.5">
+              <option value="">Assign to Team Lead...</option>
+              ${team_leads.map(tl => `<option value="${tl.id}">${orgEscape(tl.name)}</option>`).join('')}
+            </select>` : ''}
+          <button onclick="promoteToTeamLead(${s.id})" class="text-xs font-semibold text-indigo-600 hover:underline whitespace-nowrap">Make Team Lead</button>
+        </div>
+      </div>`).join('') : '<p class="text-sm text-slate-400">Everyone on your team is under a Team Lead.</p>';
+
+    // One card per Team Lead, listing who's currently under them.
+    document.getElementById('teamLeadCards').innerHTML = team_leads.length ? team_leads.map(tl => {
+      const reports = sales_men.filter(s => s.team_lead_id === tl.id);
+      return `
+      <div class="bg-white rounded-2xl shadow-card border border-hair p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-full bg-gold text-ink font-display font-bold flex items-center justify-center text-sm shrink-0">${initials(tl.name)}</span>
+            <div>
+              <p class="font-display text-base font-semibold text-ink">${orgEscape(tl.name)}</p>
+              <p class="text-xs text-slate-400">${orgEscape(tl.designation || 'Team Lead')} · ${reports.length} report${reports.length === 1 ? '' : 's'}</p>
+            </div>
+          </div>
+          <button onclick="removeTeamLead(${tl.id})" class="text-xs font-semibold text-brand-rose hover:underline">Demote to Sales Man</button>
+        </div>
+        <div class="space-y-2">
+          ${reports.length ? reports.map(rep => `
+            <div class="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2 gap-2">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="w-7 h-7 rounded-full bg-slate-200 text-slate-600 font-display font-semibold flex items-center justify-center text-[11px] shrink-0">${initials(rep.name)}</span>
+                <span class="text-sm text-ink truncate">${orgEscape(rep.name)}</span>
+              </div>
+              <button onclick="assignToTeamLead(${rep.id}, null)" class="text-xs text-slate-500 hover:text-brand-rose hover:underline shrink-0">Remove</button>
+            </div>`).join('') : '<p class="text-xs text-slate-400">No one assigned yet.</p>'}
+        </div>
+      </div>`;
+    }).join('') : '<p class="text-sm text-slate-400 px-1">No Team Leads yet — promote someone from the list above to get started.</p>';
+  }
+
+  async function promoteToTeamLead(userId) {
+    if (!confirm('Promote this Sales Man to Team Lead?')) return;
+    try {
+      const res = await apiFetch(`${API}/users/${userId}/make-team-lead`, { method: 'POST' });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showAlert(result.message);
+      await loadStructure();
+      loadTeamBreakdown(); // Team Analysis / My Team org chart depend on the same roster
+    } catch (err) { showAlert(err.message, true); }
+  }
+
+  async function removeTeamLead(userId) {
+    if (!confirm("Demote this Team Lead back to Sales Man? Their reports will move to reporting directly to you.")) return;
+    try {
+      const res = await apiFetch(`${API}/users/${userId}/remove-team-lead`, { method: 'POST' });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showAlert(result.message);
+      await loadStructure();
+      loadTeamBreakdown();
+    } catch (err) { showAlert(err.message, true); }
+  }
+
+  async function assignToTeamLead(salesManId, teamLeadId) {
+    try {
+      const res = await apiFetch(`${API}/users/${salesManId}/assign-team-lead`, {
+        method: 'PUT', headers: authHeadersJSON, body: JSON.stringify({ team_lead_id: teamLeadId || null })
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showAlert(result.message);
+      await loadStructure();
+    } catch (err) { showAlert(err.message, true); }
+  }
+
+  // ---------- Team Leads ----------
+  async function loadTeamLeads() {
+    const params = new URLSearchParams();
+    const search = document.getElementById('filterSearch').value.trim();
+    const repId = document.getElementById('filterRep').value;
+    const stage = document.getElementById('filterStage').value;
+    const status = document.getElementById('filterStatus').value;
+    if (search) params.set('search', search);
+    if (repId) params.set('sales_rep_id', repId);
+    if (stage) params.set('stage', stage);
+    if (status) params.set('status', status);
+
+    // UI fix: skeleton while filter results are loading.
+    renderSkeleton('leadsList', 6, skeletonLeadCard);
+
+    try {
+      const res = await apiFetch(`${API}/leads?${params.toString()}`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      const el = document.getElementById('leadsList');
+      el.innerHTML = result.data.length ? result.data.map(l => leadCard(l)).join('') : `<p class="text-sm text-slate-400 col-span-full">No leads match this filter.</p>`;
+    } catch (err) {
+      showAlert(err.message, true);
+    }
+  }
+  document.getElementById('filterSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadTeamLeads(); });
+
+  // ---------- Edit Lead (+ phone/spouse contact management) ----------
+  let editingLeadId = null;
+
+  async function openEditModal(lead) {
+    editingLeadId = lead.id;
+    document.getElementById('e_id').value = lead.id;
+    document.getElementById('e_lead_name').value = lead.lead_name;
+    document.getElementById('e_project').value = lead.project || '';
+    document.getElementById('e_stage').value = lead.stage;
+    document.getElementById('e_status').value = lead.status;
+    document.getElementById('e_client_meeting').value = lead.client_meeting;
+    document.getElementById('e_site_visit').value = lead.site_visit;
+    document.getElementById('e_meeting_at_hq').value = lead.meeting_at_hq;
+    document.getElementById('e_next_follow_up').value = toDatetimeLocalValue(lead.next_follow_up);
+    document.getElementById('e_unmet_demand_reason').value = lead.unmet_demand_reason || '';
+    document.getElementById('e_note').value = lead.note || '';
+    document.getElementById('e_spouse_name').value = lead.spouse_name || '';
+
+    openModal('editModal');
+    await loadEditingLeadContacts();
+  }
+
+  // ---------- Nursing Journey (dedicated, view-only for Cluster Head) ----------
+  let journeyLeadId = null;
+
+  const ACTIVITY_STYLE = {
+    created:        { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>' },
+    note:           { bg: 'bg-slate-200',   text: 'text-slate-600',   icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 4h16v12H8l-4 4z"/></svg>' },
+    call:           { bg: 'bg-indigo-100',  text: 'text-indigo-700',  icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.7a2 2 0 0 1-.4 2.1L8 9.9a16 16 0 0 0 6 6l1.4-1.4a2 2 0 0 1 2.1-.4c.9.3 1.8.5 2.7.6a2 2 0 0 1 1.8 2.2Z"/></svg>' },
+    meeting:        { bg: 'bg-amber-100',   text: 'text-amber-700',   icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
+    stage_change:   { bg: 'bg-goldsoft',    text: 'text-ink',         icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>' },
+    status_change:  { bg: 'bg-purple-100',  text: 'text-purple-700',  icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>' },
+    follow_up_set:  { bg: 'bg-blue-100',    text: 'text-blue-700',    icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>' },
+    meeting_update: { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>' },
+    transfer:       { bg: 'bg-indigo-100',  text: 'text-indigo-700',  icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 3l4 4-4 4"/><path d="M20 7H4"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h16"/></svg>' },
+    unassigned:     { bg: 'bg-rose-100',    text: 'text-brand-rose', icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 9v4m0 4h.01M10.3 3.9 2.7 17a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>' },
+  };
+
+  function renderActivityTimeline(activities) {
+    const el = document.getElementById('activityTimeline');
+    if (!activities.length) {
+      el.innerHTML = `<p class="text-sm text-slate-400 text-center py-8">No activity logged for this lead yet.</p>`;
+      return;
+    }
+    el.innerHTML = activities.map((a, i) => {
+      const style = ACTIVITY_STYLE[a.activity_type] || ACTIVITY_STYLE.note;
+      const isLast = i === activities.length - 1;
+      return `
+        <div class="relative flex gap-3">
+          ${!isLast ? `<span class="absolute left-[13px] top-7 bottom-[-16px] w-px bg-hair"></span>` : ''}
+          <div class="w-7 h-7 rounded-full ${style.bg} ${style.text} flex items-center justify-center shrink-0 z-10">${style.icon}</div>
+          <div class="min-w-0 flex-1 pt-0.5 pb-1">
+            <p class="text-sm text-ink leading-snug">${a.description}</p>
+            <p class="text-xs text-slate-400 mt-0.5">${a.actor_name || 'System'} · ${formatDateTime(a.created_at)}</p>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function openJourneyModal(lead) {
+    journeyLeadId = lead.id;
+    document.getElementById('journeyLeadName').textContent = lead.lead_name;
+    document.getElementById('journeyLeadMeta').textContent = [lead.lead_id, lead.lead_phone].filter(Boolean).join(' · ');
+    openModal('journeyModal');
+    try {
+      const res = await apiFetch(`${API}/leads/${journeyLeadId}/activities`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      renderActivityTimeline(result.data);
+    } catch (err) {
+      showToast(err.message || 'Could not load activity timeline', 'error');
+    }
+  }
+
+  async function loadEditingLeadContacts() {
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/phones`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+
+      document.getElementById('editPhonesList').innerHTML = result.phones.map(p => `
+        <div class="flex items-center justify-between bg-white border border-hair rounded-lg px-3 py-2">
+          <span class="text-sm ${p.is_primary ? 'font-semibold text-ink' : 'text-slate-600'}">${p.phone_number} ${p.is_primary ? '<span class="text-[10px] uppercase tracking-wide text-gold ml-1">Primary</span>' : ''}</span>
+          <div class="flex items-center gap-2">
+            ${!p.is_primary ? `<button type="button" onclick="setPrimaryPhone(${p.id})" class="text-xs text-indigo-600 hover:underline">Set Primary</button>` : ''}
+            <button type="button" onclick="deletePhone(${p.id})" class="text-xs text-brand-rose hover:underline">Remove</button>
+          </div>
+        </div>`).join('');
+
+      document.getElementById('editSpousePhonesList').innerHTML = result.spouse_phones.map(p => `
+        <div class="flex items-center justify-between bg-white border border-hair rounded-lg px-3 py-2">
+          <span class="text-sm text-slate-600">${p.phone_number}</span>
+          <button type="button" onclick="deleteSpousePhone(${p.id})" class="text-xs text-brand-rose hover:underline">Remove</button>
+        </div>`).join('');
+    } catch (err) { showAlert(err.message, true); }
+  }
+
+  async function addPhoneToEditingLead() {
+    const input = document.getElementById('newPhoneInput');
+    if (!input.value.trim()) return;
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/phones`, { method: 'POST', headers: authHeadersJSON, body: JSON.stringify({ phone_number: input.value.trim() }) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      input.value = ''; showAlert('Phone number added');
+      await loadEditingLeadContacts();
+    } catch (err) { showAlert(err.message, true); }
+  }
+  async function setPrimaryPhone(phoneId) {
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/phones/${phoneId}/primary`, { method: 'PUT', headers: authHeadersJSON });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Primary number updated');
+      await loadEditingLeadContacts();
+    } catch (err) { showAlert(err.message, true); }
+  }
+  async function deletePhone(phoneId) {
+    if (!confirm('Remove this phone number?')) return;
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/phones/${phoneId}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Phone number removed');
+      await loadEditingLeadContacts();
+    } catch (err) { showAlert(err.message, true); }
+  }
+  async function addSpousePhoneToEditingLead() {
+    const input = document.getElementById('newSpousePhoneInput');
+    if (!input.value.trim()) return;
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/spouse-phones`, { method: 'POST', headers: authHeadersJSON, body: JSON.stringify({ phone_number: input.value.trim() }) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      input.value = ''; showAlert('Spouse number added');
+      await loadEditingLeadContacts();
+    } catch (err) { showAlert(err.message, true); }
+  }
+  async function deleteSpousePhone(phoneId) {
+    if (!confirm('Remove this spouse phone number?')) return;
+    try {
+      const res = await apiFetch(`${API}/leads/${editingLeadId}/spouse-phones/${phoneId}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Spouse number removed');
+      await loadEditingLeadContacts();
+    } catch (err) { showAlert(err.message, true); }
+  }
+
+  document.getElementById('editForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('e_id').value;
+    const payload = {
+      lead_name: document.getElementById('e_lead_name').value,
+      project: document.getElementById('e_project').value,
+      stage: document.getElementById('e_stage').value,
+      status: document.getElementById('e_status').value,
+      client_meeting: document.getElementById('e_client_meeting').value,
+      site_visit: document.getElementById('e_site_visit').value,
+      meeting_at_hq: document.getElementById('e_meeting_at_hq').value,
+      next_follow_up: toMySQLDatetime(document.getElementById('e_next_follow_up').value),
+      unmet_demand_reason: document.getElementById('e_unmet_demand_reason').value || null,
+      note: document.getElementById('e_note').value
+    };
+    try {
+      const res = await apiFetch(`${API}/leads/${id}`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify(payload) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+
+      const spouseName = document.getElementById('e_spouse_name').value;
+      await apiFetch(`${API}/leads/${id}/spouse`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify({ spouse_name: spouseName || null }) });
+
+      showAlert('Lead updated successfully!');
+      closeModal('editModal');
+      loadTeamLeads(); loadTeamBreakdown();
+    } catch (err) { showAlert(err.message, true); }
+  });
+
+  // ---------- Transfer ----------
+  function openTransferModal() { openModal('transferModal'); }
+  async function submitTransfer() {
+    const leadId = editingLeadId;
+    const newRepId = document.getElementById('transferRepSelect').value;
+    try {
+      const res = await apiFetch(`${API}/leads/${leadId}/transfer`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify({ new_sales_rep_id: newRepId }) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showAlert(result.message);
+      closeModal('transferModal');
+      closeModal('editModal');
+      loadTeamLeads(); loadTeamBreakdown();
+    } catch (err) { showAlert(err.message, true); }
+  }
+
+  // ---------- My Profile ----------
+  function renderAvatar(profile) {
+    const url = fileUrl(profile.profile_picture);
+    const sideImg = document.getElementById('sidebarAvatar'), sideFallback = document.getElementById('sidebarAvatarFallback');
+    const bigImg = document.getElementById('profileAvatarImg'), bigFallback = document.getElementById('profileAvatarFallback');
+    if (url) {
+      sideImg.src = url; sideImg.classList.remove('hidden'); sideFallback.classList.add('hidden');
+      bigImg.src = url; bigImg.classList.remove('hidden'); bigFallback.classList.add('hidden');
+    } else {
+      sideImg.classList.add('hidden'); sideFallback.classList.remove('hidden');
+      bigImg.classList.add('hidden'); bigFallback.classList.remove('hidden');
+      sideFallback.textContent = initials(profile.name);
+      bigFallback.textContent = initials(profile.name);
+    }
+  }
+
+  async function loadMyProfile() {
+    try {
+      const res = await apiFetch(`${API}/users/me`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      const p = result.data;
+
+      document.getElementById('sidebarUserName').textContent = p.name;
+      document.getElementById('profileDisplayName').textContent = p.name;
+      document.getElementById('profileDisplayDesignation').textContent = p.designation || 'No designation set';
+      document.getElementById('p_name').value = p.name || '';
+      document.getElementById('p_designation').value = p.designation || '';
+      document.getElementById('p_phone').value = p.phone || '';
+      document.getElementById('p_email_display').value = p.email || '';
+      renderAvatar(p);
+    } catch (err) {
+      showAlert(err.message || 'Could not load your profile', true);
+    }
+  }
+
+  async function uploadAvatar(file) {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('profile_picture', file);
+    try {
+      const res = await apiFetch(`${API}/users/me/profile-picture`, { method: 'POST',  body: formData });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Profile picture updated');
+      loadMyProfile();
+    } catch (err) { showAlert(err.message || 'Could not upload photo', true); }
+  }
+
+  document.getElementById('profileForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      name: document.getElementById('p_name').value.trim(),
+      designation: document.getElementById('p_designation').value.trim() || null,
+      phone: document.getElementById('p_phone').value.trim() || null
+    };
+    try {
+      const res = await apiFetch(`${API}/users/me`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify(payload) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Profile updated successfully!');
+      loadMyProfile();
+    } catch (err) { showAlert(err.message, true); }
+  });
+
+  document.getElementById('emailForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = { new_email: document.getElementById('em_new_email').value.trim(), current_password: document.getElementById('em_current_password').value };
+    try {
+      const res = await apiFetch(`${API}/users/me/email`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify(payload) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Email updated successfully!');
+      document.getElementById('emailForm').reset();
+      loadMyProfile();
+    } catch (err) { showAlert(err.message, true); }
+  });
+
+  document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newPw = document.getElementById('pw_new').value;
+    const confirmPw = document.getElementById('pw_confirm').value;
+    if (newPw !== confirmPw) { showAlert('New password and confirmation do not match.', true); return; }
+    const payload = { oldPassword: document.getElementById('pw_old').value, newPassword: newPw };
+    try {
+      const res = await apiFetch(`${API}/auth/reset-password`, { method: 'POST', headers: authHeadersJSON, body: JSON.stringify(payload) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message);
+      showAlert('Password updated successfully!');
+      document.getElementById('passwordForm').reset();
+    } catch (err) { showAlert(err.message, true); }
+  });
+
+  // ---------- Init ----------
+  switchTab('overview');
+  loadOverview();
+  loadTeamBreakdown();
+  loadMyProfile();
+</script>
+</body>
+</html>

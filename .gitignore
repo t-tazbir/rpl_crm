@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local maintenance script contains a hard-coded password reset
+update-pass.js
+
+# Logs and runtime output
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+coverage/
+
+# Editor and operating system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# User uploaded profile pictures
+public/uploads/profile-pictures/*
+!public/uploads/profile-pictures/.gitkeep

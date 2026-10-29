@@ -115,4 +115,4 @@ The package scripts are `npm start` and `npm run dev`. No automated test suite o
 
 ## Continuous integration
 
-GitHub Actions runs `.github/workflows/ci.yml` on pushes and pull requests. It installs dependencies from `package-lock.json` with `npm ci` and checks the syntax of project JavaScript files. The project does not yet have an automated test suite.
+GitHub Actions runs `.github/workflows/ci.yml` on pushes and pull requests using Node.js 24. It installs dependencies from `package-lock.json` with `npm ci` and checks the syntax of project JavaScript files. The project does not yet have an automated test suite.

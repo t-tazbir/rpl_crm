@@ -40,10 +40,12 @@ RPL CRM is a browser-based lead and team management application. The Express ser
    DB_PASSWORD=your_mysql_password
    DB_NAME=rpl_crm
 
-   # Needed only when the browser UI is hosted on a different origin.
-   CORS_ORIGIN=http://localhost:5000
+   # Optional: comma-separated origins only when the API is called cross-origin.
+   # Same-origin UI/API requests do not require CORS configuration.
+   CORS_ORIGIN=
 
    # Used to build password-reset links sent by email.
+   # Public base URL used in password reset emails. Set this in production.
    FRONTEND_URL=http://localhost:5000
 
    SMTP_HOST=smtp.example.com

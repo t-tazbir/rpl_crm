@@ -14,8 +14,17 @@ const app = express();
 // this only matters if the frontend is served from a different origin than the API — if
 // both are served from this same Express app (as public/ is below), the browser treats
 // requests as same-origin and this CORS config is never even consulted.
+const corsOrigins = (process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5001',
+    origin: (origin, callback) => {
+        // Same-origin requests do not need CORS. Allow cross-origin requests only
+        // from explicitly configured origins, since cookies require credentials.
+        callback(null, !origin || corsOrigins.includes(origin));
+    },
     credentials: true
 }));
 app.use(express.json());

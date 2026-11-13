@@ -15,7 +15,7 @@ const app = express();
 // both are served from this same Express app (as public/ is below), the browser treats
 // requests as same-origin and this CORS config is never even consulted.
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5000',
+    origin: process.env.CORS_ORIGIN || 'http://localhost:5001',
     credentials: true
 }));
 app.use(express.json());

@@ -156,7 +156,7 @@ exports.forgotPassword = async (req, res) => {
             [tokenHash, expiresAt, user.id]
         );
 
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5000';
+        const frontendUrl = (process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
         const resetLink = `${frontendUrl}/reset-password.html?token=${rawToken}`;
 
         await sendPasswordResetEmail(user.email, user.name, resetLink);

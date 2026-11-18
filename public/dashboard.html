@@ -595,7 +595,7 @@
     redirectToLogin();
   }
 
-  const API = 'http://localhost:5000/api';
+  const API = '/api';
 
   // Bug #6 fix: wrapper ensures `credentials: 'include'` (required for the cookie to be
   // sent) is never missed on an individual call, and centralizes 401 handling.
@@ -667,8 +667,8 @@
     bar.style.width = '30%';
 
     try {
-      const res = await fetch('http://localhost:5000/api/dashboard/stats', {
-        
+      const res = await fetch('/api/dashboard/stats', {
+        credentials: 'include'
       });
       bar.style.width = '70%';
       const result = await res.json();

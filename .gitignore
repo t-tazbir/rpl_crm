@@ -6,6 +6,19 @@ node_modules/
 .env.*
 !.env.example
 
+# Local database exports and backups (do not commit user/sample data)
+/rpl_crm.sql
+*.sql.gz
+*.dump
+*.bak
+*.backup
+
+# Private keys and certificate bundles
+*.pem
+*.key
+*.p12
+*.pfx
+
 # Local maintenance script contains a hard-coded password reset
 update-pass.js
 
@@ -15,6 +28,10 @@ npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 coverage/
+*.tmp
+*.temp
+*.swp
+*.swo
 
 # Editor and operating system files
 .vscode/

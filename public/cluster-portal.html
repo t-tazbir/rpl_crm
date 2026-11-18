@@ -354,7 +354,10 @@
       <form id="editForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
         <input type="hidden" id="e_id">
         <div><label class="block font-medium text-slate-700 mb-1">Lead Name *</label><input id="e_lead_name" required class="w-full px-3 py-2 border border-hair rounded-lg"></div>
-        <div><label class="block font-medium text-slate-700 mb-1">Project</label><input id="e_project" class="w-full px-3 py-2 border border-hair rounded-lg"></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Profession</label><select id="e_profession" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="">Select Profession (optional)</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Project</label><select id="e_project" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="">Loading projects...</option></select></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Location</label><input id="e_project_location" readonly class="w-full px-3 py-2 border border-hair rounded-lg bg-slate-50"></div>
+        <div><label class="block font-medium text-slate-700 mb-1">Category</label><select id="e_category" disabled class="w-full px-3 py-2 border border-hair rounded-lg bg-slate-50"><option value="">Select a project</option><option value="Residential">Residential</option><option value="Commercial">Commercial</option></select></div>
         <div><label class="block font-medium text-slate-700 mb-1">Stage</label><select id="e_stage" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="Lead">Lead</option><option value="Prospect">Prospect</option><option value="Priority">Priority</option></select></div>
         <div><label class="block font-medium text-slate-700 mb-1">Status</label><select id="e_status" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="Active">Active</option><option value="Converted">Converted</option><option value="Lost">Lost</option><option value="On Hold">On Hold</option></select></div>
         <div><label class="block font-medium text-slate-700 mb-1">Client Meeting</label><select id="e_client_meeting" class="w-full px-3 py-2 border border-hair rounded-lg"><option value="No">No</option><option value="Yes">Yes</option></select></div>
@@ -445,7 +448,7 @@
     redirectToLogin();
   }
 
-  const API = 'http://localhost:5000/api';
+  const API = '/api';
 
   async function apiFetch(url, options = {}) {
     const res = await fetch(url, { ...options, credentials: 'include' });
@@ -574,7 +577,8 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>
           ${formatDateTime(lead.next_follow_up)}
         </div>
-        ${lead.project ? `<p class="text-xs text-slate-400">${lead.project}</p>` : ''}
+        ${lead.project ? `<p class="text-xs text-slate-400">${orgEscape(lead.project)}${lead.project_location ? ` · ${orgEscape(lead.project_location)}` : ''}${lead.category ? ` · ${orgEscape(lead.category)}` : ''}</p>` : ''}
+        ${lead.profession ? `<p class="text-xs text-slate-500">${orgEscape(lead.profession)}</p>` : ''}
       </div>`;
   }
 
@@ -962,12 +966,80 @@
 
   // ---------- Edit Lead (+ phone/spouse contact management) ----------
   let editingLeadId = null;
+  let professionOptions = [];
+  let professionConfigLoaded = false;
+  async function loadProfessionOptions() {
+    const select = document.getElementById('e_profession');
+    try {
+      const response = await fetch('/profession-list.json', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Profession list could not be loaded.');
+      const data = await response.json();
+      if (!Array.isArray(data.professions) || data.professions.some(value => typeof value !== 'string')) throw new Error('Profession list format is invalid.');
+      professionOptions = data.professions;
+      professionConfigLoaded = true;
+      const currentValue = select.value;
+      select.replaceChildren(new Option('Select Profession (optional)', ''));
+      professionOptions.forEach(value => select.add(new Option(value, value)));
+      if (currentValue && !professionOptions.includes(currentValue)) select.add(new Option(currentValue, currentValue));
+      select.value = currentValue;
+    } catch (error) {
+      select.replaceChildren(new Option('Profession list unavailable', ''));
+      select.disabled = true;
+      showAlert(error.message || 'Profession list could not be loaded.', true);
+    }
+  }
+  const professionLoadPromise = loadProfessionOptions();
+  let projectConfig = [];
+  let projectConfigLoaded = false;
+  async function loadProjectOptions() {
+    const select = document.getElementById('e_project');
+    try {
+      const response = await fetch('/project-list.json', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Project list could not be loaded.');
+      const data = await response.json();
+      if (!Array.isArray(data.projects)) throw new Error('Project list format is invalid.');
+      projectConfig = data.projects;
+      projectConfigLoaded = true;
+      const currentValue = select.value;
+      select.replaceChildren(new Option('-- Select a project --', ''));
+      projectConfig.forEach(project => select.add(new Option(project.name, project.name)));
+      if (currentValue && !projectConfig.some(project => project.name === currentValue)) select.add(new Option(currentValue, currentValue));
+      select.value = currentValue;
+    } catch (error) {
+      select.replaceChildren(new Option('Project list unavailable', ''));
+      select.disabled = true;
+      showAlert(error.message, true);
+    }
+  }
+  function setEditProject(lead) {
+    const select = document.getElementById('e_project');
+    const configured = projectConfig.find(project => project.name === lead.project);
+    if (lead.project && !configured) select.add(new Option(lead.project, lead.project));
+    select.value = lead.project || '';
+    select.dataset.originalProject = lead.project || '';
+    document.getElementById('e_project_location').value = configured?.location || lead.project_location || '';
+    document.getElementById('e_category').value = ['Residential', 'Commercial'].includes(configured?.category) ? configured.category : (lead.category || '');
+  }
+  document.getElementById('e_project').addEventListener('change', () => {
+    const project = projectConfig.find(item => item.name === document.getElementById('e_project').value);
+    document.getElementById('e_project_location').value = project?.location || '';
+    document.getElementById('e_category').value = ['Residential', 'Commercial'].includes(project?.category) ? project.category : '';
+  });
+  loadProjectOptions();
 
   async function openEditModal(lead) {
+    if (!professionConfigLoaded) await professionLoadPromise;
     editingLeadId = lead.id;
     document.getElementById('e_id').value = lead.id;
     document.getElementById('e_lead_name').value = lead.lead_name;
-    document.getElementById('e_project').value = lead.project || '';
+    setEditProject(lead);
+    const professionSelect = document.getElementById('e_profession');
+    professionSelect.value = lead.profession || '';
+    professionSelect.dataset.originalProfession = lead.profession || '';
+    if (lead.profession && !professionOptions.includes(lead.profession) && professionConfigLoaded) {
+      professionSelect.add(new Option(lead.profession, lead.profession));
+      professionSelect.value = lead.profession;
+    }
     document.getElementById('e_stage').value = lead.stage;
     document.getElementById('e_status').value = lead.status;
     document.getElementById('e_client_meeting').value = lead.client_meeting;
@@ -1114,7 +1186,6 @@
     const id = document.getElementById('e_id').value;
     const payload = {
       lead_name: document.getElementById('e_lead_name').value,
-      project: document.getElementById('e_project').value,
       stage: document.getElementById('e_stage').value,
       status: document.getElementById('e_status').value,
       client_meeting: document.getElementById('e_client_meeting').value,
@@ -1124,6 +1195,16 @@
       unmet_demand_reason: document.getElementById('e_unmet_demand_reason').value || null,
       note: document.getElementById('e_note').value
     };
+    const professionSelect = document.getElementById('e_profession');
+    if (professionSelect.value !== (professionSelect.dataset.originalProfession || '')) payload.profession = professionSelect.value || null;
+    if (!professionConfigLoaded) delete payload.profession;
+    const projectSelect = document.getElementById('e_project');
+    if (projectSelect.value !== (projectSelect.dataset.originalProject || '')) {
+      payload.project = projectSelect.value;
+      payload.project_location = document.getElementById('e_project_location').value;
+      payload.category = document.getElementById('e_category').value;
+    }
+    if (!projectConfigLoaded) { delete payload.project; delete payload.project_location; }
     try {
       const res = await apiFetch(`${API}/leads/${id}`, { method: 'PUT', headers: authHeadersJSON, body: JSON.stringify(payload) });
       const result = await res.json();

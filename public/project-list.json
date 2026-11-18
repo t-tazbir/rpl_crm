@@ -1,0 +1,134 @@
+{
+  "projects": [
+    {
+      "name": "Monarch",
+      "location": "Gulshan",
+      "category": "Residential"
+    },
+    {
+      "name": "Nahrira",
+      "location": "Gulshan",
+      "category": "Residential"
+    },
+    {
+      "name": "The Sanctuary",
+      "location": "Banani",
+      "category": "Residential"
+    },
+    {
+      "name": "Shireenz",
+      "location": "Banani",
+      "category": "Residential"
+    },
+    {
+      "name": "Beaumonte 53",
+      "location": "Banani",
+      "category": "Residential"
+    },
+    {
+      "name": "Haque Heights",
+      "location": "Banani",
+      "category": "Residential"
+    },
+    {
+      "name": "Noorani Heights",
+      "location": "Banani DOHS",
+      "category": "Residential"
+    },
+    {
+      "name": "White Lake",
+      "location": "Shahzadpur",
+      "category": "Residential"
+    },
+    {
+      "name": "Park Panorama",
+      "location": "Mohakhali DOHS",
+      "category": "Residential"
+    },
+    {
+      "name": "Ixora",
+      "location": "Bashundhara Block C",
+      "category": "Residential"
+    },
+    {
+      "name": "Cloud N Creek",
+      "location": "Bashundhara Block N",
+      "category": "Residential"
+    },
+    {
+      "name": "Mayank",
+      "location": "Bashundhara Block M",
+      "category": "Residential"
+    },
+    {
+      "name": "Dakhinayon",
+      "location": "Bashundhara Block M",
+      "category": "Residential"
+    },
+    {
+      "name": "T Cube",
+      "location": "Lalmatia",
+      "category": "Residential"
+    },
+    {
+      "name": "Belasheshe",
+      "location": "Dhanmondi 2/A",
+      "category": "Residential"
+    },
+    {
+      "name": "The Majestic",
+      "location": "Dhanmondi 5",
+      "category": "Residential"
+    },
+    {
+      "name": "Sayera's Place",
+      "location": "Banani",
+      "category": "Residential"
+    },
+    {
+      "name": "Torukabbo",
+      "location": "Shewrapara",
+      "category": "Residential"
+    },
+    {
+      "name": "Heritage",
+      "location": "Lalbagh",
+      "category": "Hybrid"
+    },
+    {
+      "name": "AK Square",
+      "location": "Dhanmondi 2",
+      "category": "Commercial"
+    },
+    {
+      "name": "A&F Square",
+      "location": "Satmasjid Road",
+      "category": "Commercial"
+    },
+    {
+      "name": "Vantage 27",
+      "location": "Dhanmondi 27",
+      "category": "Commercial"
+    },
+    {
+      "name": "RK Sq",
+      "location": "Gulshan 1",
+      "category": "Commercial"
+    },
+    {
+      "name": "The Ion",
+      "location": "Uttara Sec 4",
+      "category": "Commercial"
+    },
+    {
+      "name": "Terminal D",
+      "location": "Diabari",
+      "category": "Commercial"
+    },
+    {
+      "name": "Terminal S",
+      "location": "Rokeya Sarani",
+      "category": "Commercial"
+    }
+  ]
+}

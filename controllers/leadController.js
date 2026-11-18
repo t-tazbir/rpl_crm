@@ -1,6 +1,8 @@
 const pool = require('../config/db');
 const { syncReminderForLead } = require('../services/followupReminderService');
 const { logActivity } = require('../services/activityLogService');
+const { getConfiguredProject } = require('../services/projectConfigService');
+const { isConfiguredProfession } = require('../services/professionConfigService');
 
 // Helper Function: Automatic Lead ID Generator (e.g., LD-260819-0001)
 const generateLeadId = async () => {
@@ -30,13 +32,21 @@ const generateLeadId = async () => {
 exports.createLead = async (req, res) => {
     try {
         const {
-            source, lead_name, lead_phone, spouse_name, project, category,
+            source, lead_name, lead_phone, spouse_name, project, profession,
             space_size_sqft, stage, client_meeting, site_visit,
             meeting_at_hq, status, unmet_demand_reason, next_follow_up, note
         } = req.body;
 
         if (!lead_name || !lead_phone) {
             return res.status(400).json({ message: 'Lead Name and Phone Number are required' });
+        }
+
+        const selectedProject = project ? getConfiguredProject(project) : null;
+        if (project && !selectedProject) {
+            return res.status(400).json({ message: 'Please select a configured project.' });
+        }
+        if (profession != null && profession !== '' && !isConfiguredProfession(profession)) {
+            return res.status(400).json({ message: 'Please select a profession from the configured list.' });
         }
 
         const sales_rep_id = req.user.id;
@@ -52,14 +62,16 @@ exports.createLead = async (req, res) => {
         const insertQuery = `
             INSERT INTO leads (
                 lead_id, source, sales_rep_id, cluster_head_id, lead_name, lead_phone, spouse_name,
-                project, category, space_size_sqft, stage, client_meeting, site_visit,
+                project, project_location, profession, category, space_size_sqft, stage, client_meeting, site_visit,
                 meeting_at_hq, status, unmet_demand_reason, next_follow_up, note
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         const values = [
             lead_id, source || null, sales_rep_id, cluster_head_id, lead_name, lead_phone, spouse_name || null,
-            project || null, category || null, space_size_sqft || null, stage || 'Lead',
+            project || null, selectedProject?.location || null, profession || null,
+            ['Residential', 'Commercial'].includes(selectedProject?.category) ? selectedProject.category : null,
+            space_size_sqft || null, stage || 'Lead',
             client_meeting || 'No', site_visit || 'No', meeting_at_hq || 'No',
             finalStatus, unmet_demand_reason || null, next_follow_up || null, note || null
         ];
@@ -245,7 +257,7 @@ exports.updateLead = async (req, res) => {
         const leadId = req.params.id;
 
         const allowedUpdates = [
-            'lead_name', 'project', 'category', 'space_size_sqft',
+            'lead_name', 'project', 'profession', 'space_size_sqft',
             'stage', 'client_meeting', 'site_visit', 'meeting_at_hq', 'status',
             'unmet_demand_reason', 'next_follow_up', 'note'
         ];
@@ -256,7 +268,7 @@ exports.updateLead = async (req, res) => {
         allowedUpdates.forEach(field => {
             if (req.body[field] !== undefined) {
                 updateFields.push(`${field} = ?`);
-                queryParams.push(req.body[field]);
+                queryParams.push(field === 'profession' && req.body[field] === '' ? null : req.body[field]);
             }
         });
 
@@ -272,6 +284,27 @@ exports.updateLead = async (req, res) => {
         }
 
         const targetLead = leadRows[0];
+
+        if (req.body.profession != null && req.body.profession !== '' &&
+            !isConfiguredProfession(req.body.profession) && req.body.profession !== targetLead.profession) {
+            return res.status(400).json({ message: 'Please select a profession from the configured list.' });
+        }
+        // The JSON configuration is authoritative for configured projects.
+        // Preserve unchanged legacy project/location values; ignore client location.
+        if (req.body.project !== undefined) {
+            const requestedProject = req.body.project || null;
+            if (requestedProject !== targetLead.project) {
+                const selectedProject = requestedProject ? getConfiguredProject(requestedProject) : null;
+                if (requestedProject && !selectedProject) return res.status(400).json({ message: 'Please select a configured project.' });
+                const projectFieldIndex = updateFields.findIndex(field => field === 'project = ?');
+                if (projectFieldIndex >= 0) queryParams[projectFieldIndex] = requestedProject;
+                else { updateFields.push('project = ?'); queryParams.push(requestedProject); }
+                updateFields.push('project_location = ?');
+                queryParams.push(selectedProject?.location || null);
+                updateFields.push('category = ?');
+                queryParams.push(['Residential', 'Commercial'].includes(selectedProject?.category) ? selectedProject.category : null);
+            }
+        }
 
         if (req.user.role === 'SALES_MAN' && targetLead.sales_rep_id !== req.user.id) {
             return res.status(403).json({ message: 'Access Denied: Apni onno karo lead edit korte parben na.' });
